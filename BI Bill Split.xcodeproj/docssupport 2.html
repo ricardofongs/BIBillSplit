@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support – BI Splitter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      line-height: 1.7;
+    }
+
+    header {
+      background: #000;
+      color: #fff;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p  { font-size: 0.95rem; opacity: 0.7; margin-top: 6px; }
+
+    main {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 24px 60px;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 0 0 10px;
+      color: #1d1d1f;
+    }
+
+    p, li { font-size: 1rem; color: #3a3a3c; }
+    ul { padding-left: 22px; }
+    ul li { margin-bottom: 6px; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      margin-bottom: 24px;
+    }
+
+    .faq-q {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #1d1d1f;
+    }
+
+    .faq-a {
+      color: #3a3a3c;
+      margin-bottom: 20px;
+    }
+
+    .contact-btn {
+      display: inline-block;
+      background: #0071e3;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 14px 28px;
+      border-radius: 980px;
+      text-decoration: none;
+      margin-top: 12px;
+      transition: background 0.2s;
+    }
+    .contact-btn:hover { background: #0077ed; }
+
+    footer {
+      text-align: center;
+      font-size: 0.82rem;
+      color: #86868b;
+      padding: 24px;
+    }
+
+    a { color: #0071e3; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    code {
+      background: #f0f0f2;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>BI Splitter</h1>
+  <p>Support &amp; Help Center</p>
+</header>
+
+<main>
+
+  <!-- About -->
+  <div class="card">
+    <h2>About BI Splitter</h2>
+    <p>BI Splitter is an iOS app that makes splitting restaurant bills easy. Add people, assign items, scan receipts with AI, calculate tax and tip, export PDFs, and request payment — all from your iPhone.</p>
+  </div>
+
+  <!-- Getting Started -->
+  <div class="card">
+    <h2>Getting Started</h2>
+    <ul>
+      <li><strong>Add people</strong> — Tap the People section and type a name, import from Contacts, or load a saved group.</li>
+      <li><strong>Add items</strong> — Enter item name and price, then tap the person bubbles to assign who had it.</li>
+      <li><strong>Scan a receipt</strong> — Tap the ··· menu → Scan Receipt to use the camera and AI parsing.</li>
+      <li><strong>Review the summary</strong> — Scroll down to see each person's itemised share, including tax and tip.</li>
+      <li><strong>Export or share</strong> — Use the PDF export button to save a receipt, or Share Bill to send the full bill to another device.</li>
+      <li><strong>Save the bill</strong> — Tap the save icon (↓) in the top right. You'll need to enter a restaurant name first.</li>
+    </ul>
+  </div>
+
+  <!-- FAQ -->
+  <div class="card">
+    <h2>Frequently Asked Questions</h2>
+
+    <p class="faq-q">How is the tip calculated?</p>
+    <p class="faq-a">By default, tip is calculated on the subtotal before tax (Pre-Tax Tip). Toggle the "Pre Tax Tip" switch in the Summary section to change this behaviour.</p>
+
+    <p class="faq-q">How is each person's share calculated?</p>
+    <p class="faq-a">Each person pays for the items assigned to them. If an item is shared by multiple people, its cost is split equally. Tax and tip are distributed proportionally based on each person's item total.</p>
+
+    <p class="faq-q">Can I share a bill with someone who doesn't have the app?</p>
+    <p class="faq-a">The Bill Share feature (person.2.wave.2 icon) creates a deep link that requires the recipient to also have BI Splitter installed. To share with anyone, use the PDF export button instead.</p>
+
+    <p class="faq-q">Why does receipt scanning sometimes miss items?</p>
+    <p class="faq-a">Receipt OCR works best on flat, well-lit receipts. Try scanning again with better lighting, or add items manually using the Items section. You can also attach a photo of the receipt to the bill for reference.</p>
+
+    <p class="faq-q">Where is my bill data stored?</p>
+    <p class="faq-a">All bill data is stored locally on your device using Core Data. It is never uploaded to any server (except receipt text lines when using the optional AI parsing feature — see our Privacy Policy).</p>
+
+    <p class="faq-q">How do I delete a saved bill?</p>
+    <p class="faq-a">Go to the Saved Bills tab and swipe left on any bill to reveal the Delete option.</p>
+
+    <p class="faq-q">How do I load a saved bill to edit it?</p>
+    <p class="faq-a">Tap any saved bill in the Saved Bills tab. It will load into the Bill tab so you can make changes and re-save it.</p>
+
+    <p class="faq-q">How do I request payment from someone?</p>
+    <p class="faq-a">In the Summary section or the person row, tap the green <strong>Request</strong> button. BI Splitter will open Venmo (if installed) pre-filled with the amount, or send a pre-written iMessage to the person's phone number.</p>
+
+    <p class="faq-q">What is the Zelle field for?</p>
+    <p class="faq-a">You can optionally enter a Zelle email or phone number. This information is printed on the exported PDF receipt so that people you share the PDF with know where to send their payment.</p>
+
+    <p class="faq-q">How do I export all my bills?</p>
+    <p class="faq-a">In the Saved Bills tab, tap <strong>Export Bills</strong> in the top-left corner to download a JSON file of all your saved bills.</p>
+
+    <p class="faq-q">How do I use Contact Groups?</p>
+    <p class="faq-a">Go to the Groups tab to create a reusable group of people (e.g., "Work Friends"). When adding people to a bill, tap <strong>Add Group</strong> to instantly load all members of a saved group.</p>
+
+    <p class="faq-q">The app is asking for Contacts permission — is that required?</p>
+    <p class="faq-a">No. Contacts access is entirely optional. You can always add people manually by typing their names. If you denied access and want to enable it later, go to <strong>Settings › Privacy &amp; Security › Contacts</strong> and toggle BI Splitter on.</p>
+  </div>
+
+  <!-- Contact -->
+  <div class="card">
+    <h2>Contact Support</h2>
+    <p>Didn't find what you were looking for? We're happy to help. Reach out and we'll get back to you as soon as possible.</p>
+    <a class="contact-btn" href="mailto:rfdigitaldev@gmail.com">✉️ &nbsp;Email Support</a>
+    <p style="margin-top:16px; font-size:0.9rem; color:#86868b;">Please include your iOS version and a description of the issue. Screenshots are always helpful!</p>
+  </div>
+
+  <!-- Privacy -->
+  <div class="card">
+    <h2>Privacy Policy</h2>
+    <p>Read our full <a href="privacy.html">Privacy Policy</a> to understand how BI Splitter handles your data.</p>
+  </div>
+
+</main>
+
+<footer>
+  &copy; 2026 Ricardo Fong · BI Splitter · All rights reserved.
+</footer>
+
+</body>
+</html>
