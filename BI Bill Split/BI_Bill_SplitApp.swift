@@ -7,11 +7,11 @@
 
 import SwiftUI
 
-@main
-struct BI_Bill_SplitApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}
+//@main
+//struct BI_Bill_SplitApp: App {
+//    var body: some Scene {
+//        WindowGroup {
+//            ContentView()
+//        }
+//    }
+//}

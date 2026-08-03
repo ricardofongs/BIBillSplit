@@ -4,4 +4,16 @@
    <FileRef
       location = "self:">
    </FileRef>
+   <FileRef
+      location = "group:docsprivacy.html">
+   </FileRef>
+   <FileRef
+      location = "group:docssupport.html">
+   </FileRef>
+   <FileRef
+      location = "group:privacy.html">
+   </FileRef>
+   <FileRef
+      location = "group:support.html">
+   </FileRef>
 </Workspace>
