@@ -2750,9 +2750,12 @@ struct ReceiptView2: View {
 /// Falls back to the local regex parser if the network call fails.
 struct ReceiptParser {
 
-    // ⚠️ Replace with your actual key, or load from a config file / keychain.
-    // Never ship a real key in source code — move it to a .xcconfig or the keychain before release.
-    static let openAIKey = "REMOVED_OPENAI_KEY"
+    // Loaded at runtime from the app's Info.plist, which pulls OPENAI_API_KEY from
+    // Secrets.xcconfig (git-ignored) via build-setting substitution. Never hard-code the key here.
+    static let openAIKey: String = {
+        let key = Bundle.main.object(forInfoDictionaryKey: "OPENAI_API_KEY") as? String
+        return key?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }()
 
     struct ParsedItem: Decodable {
         let name: String
@@ -2761,7 +2764,7 @@ struct ReceiptParser {
 
     /// Attempts AI-powered parsing first; returns regex-parsed items on failure.
     static func parse(lines: [String]) async -> [(name: String, price: Double)] {
-        if openAIKey != "YOUR_OPENAI_API_KEY",
+        if !openAIKey.isEmpty,
            let aiItems = try? await parseWithAI(lines: lines) {
             return aiItems
         }

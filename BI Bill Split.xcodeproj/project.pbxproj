@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		13C740682E51684C00078530 /* BillModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 13C740662E51684C00078530 /* BillModel.xcdatamodeld */; };
+		13EBD58130219A8B00AD465F /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 13EBD58030219A8A00AD465F /* Secrets.xcconfig */; };
 		13F622D2301E62FC00A55834 /* Artboard 1@1x.png in Resources */ = {isa = PBXBuildFile; fileRef = 13F622D1301E62FC00A55834 /* Artboard 1@1x.png */; };
 /* End PBXBuildFile section */
 
@@ -33,6 +34,7 @@
 		136793752E4D6FD600E68496 /* BI Bill SplitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "BI Bill SplitTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1367937F2E4D6FD600E68496 /* BI Bill SplitUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "BI Bill SplitUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13C740672E51684C00078530 /* BillModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = BillModel.xcdatamodel; sourceTree = "<group>"; };
+		13EBD58030219A8A00AD465F /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		13F622D1301E62FC00A55834 /* Artboard 1@1x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Artboard 1@1x.png"; path = "BI Bill Split/Assets.xcassets/AppIcon.appiconset/Artboard 1@1x.png"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -84,6 +86,7 @@
 			children = (
 				13F622D1301E62FC00A55834 /* Artboard 1@1x.png */,
 				13C740662E51684C00078530 /* BillModel.xcdatamodeld */,
+				13EBD58030219A8A00AD465F /* Secrets.xcconfig */,
 				1367936A2E4D6FD400E68496 /* BI Bill Split */,
 				136793782E4D6FD600E68496 /* BI Bill SplitTests */,
 				136793822E4D6FD600E68496 /* BI Bill SplitUITests */,
@@ -221,6 +224,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				13EBD58130219A8B00AD465F /* Secrets.xcconfig in Resources */,
 				13F622D2301E62FC00A55834 /* Artboard 1@1x.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -282,6 +286,7 @@
 /* Begin XCBuildConfiguration section */
 		136793872E4D6FD600E68496 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 13EBD58030219A8A00AD465F /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -345,6 +350,7 @@
 		};
 		136793882E4D6FD600E68496 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 13EBD58030219A8A00AD465F /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -401,6 +407,7 @@
 		};
 		1367938A2E4D6FD600E68496 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 13EBD58030219A8A00AD465F /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -441,6 +448,7 @@
 		};
 		1367938B2E4D6FD600E68496 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 13EBD58030219A8A00AD465F /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
