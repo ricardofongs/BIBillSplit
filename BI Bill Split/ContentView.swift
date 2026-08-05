@@ -11,6 +11,7 @@ import PDFKit
 import Charts
 @preconcurrency import PassKit
 import ContactsUI
+import MapKit
 
 // MARK: - Models
 struct Person: Identifiable, Hashable, Codable {
@@ -40,6 +41,7 @@ struct Bill: Identifiable, Codable {
     var tipPercent: Double
     var isPreTaxCalc: Bool
     var restaurantName: String
+    var restaurantAddress: String?
     var date: Date
     var receiptImageData: Data?
     var zelleEmail: String?
@@ -53,6 +55,7 @@ struct Bill: Identifiable, Codable {
         tipPercent: Double = 18,
         isPreTaxCalc: Bool = true,
         restaurantName: String = "",
+        restaurantAddress: String? = nil,
         date: Date = Date(),
         receiptImageData: Data? = nil,
         zelleEmail: String? = nil,
@@ -65,6 +68,7 @@ struct Bill: Identifiable, Codable {
         self.tipPercent = tipPercent
         self.isPreTaxCalc = isPreTaxCalc
         self.restaurantName = restaurantName
+        self.restaurantAddress = restaurantAddress
         self.date = date
         self.receiptImageData = receiptImageData
         self.zelleEmail = zelleEmail
@@ -82,6 +86,7 @@ struct Bill: Identifiable, Codable {
         tipPercent     = (try? c.decode(Double.self,    forKey: .tipPercent))     ?? 0
         isPreTaxCalc   = (try? c.decode(Bool.self,      forKey: .isPreTaxCalc))   ?? true
         restaurantName = (try? c.decode(String.self,    forKey: .restaurantName)) ?? ""
+        restaurantAddress = try? c.decodeIfPresent(String.self, forKey: .restaurantAddress)
         date           = (try? c.decode(Date.self,      forKey: .date))           ?? Date()
         receiptImageData = try? c.decodeIfPresent(Data.self,   forKey: .receiptImageData)
         zelleEmail       = try? c.decodeIfPresent(String.self, forKey: .zelleEmail)
@@ -90,7 +95,7 @@ struct Bill: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, people, items, taxPercent, tipPercent, isPreTaxCalc
-        case restaurantName, date, receiptImageData, zelleEmail, zellePhone
+        case restaurantName, restaurantAddress, date, receiptImageData, zelleEmail, zellePhone
     }
 }
 
@@ -931,6 +936,14 @@ struct AppearanceSettingsView: View {
                 } footer: {
                     Text("\"System\" follows your iPhone's appearance setting in Settings → Display & Brightness.")
                 }
+
+                Section("Support") {
+                    NavigationLink {
+                        HelpView()
+                    } label: {
+                        Label("How to Use This App", systemImage: "questionmark.circle")
+                    }
+                }
             }
             .navigationTitle("Settings")
         }
@@ -968,6 +981,187 @@ struct AppearanceSettingsView: View {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(background)
             )
+    }
+}
+
+// MARK: - Help View
+struct HelpView: View {
+    var body: some View {
+        List {
+            // MARK: Getting Started
+            Section {
+                DisclosureGroup {
+                    helpText("""
+                    1. Go to the **Bill** tab.
+                    2. Enter the restaurant name (required) and optionally an address and date.
+                    3. Add people, then add items and assign them.
+                    4. Adjust tip and tax as needed.
+                    5. Tap **Save** when you're done — the bill appears in History.
+                    """)
+                } label: {
+                    helpRow(icon: "list.bullet.clipboard", color: .blue, title: "Getting Started")
+                }
+            } header: {
+                Text("Overview")
+            }
+
+            // MARK: Restaurant
+            Section("Restaurant") {
+                DisclosureGroup {
+                    helpText("""
+                    • **Name** — required before you can save, share, or export.
+                    • **Address** — optional. Tap the 🔍 magnifying glass to search for the restaurant by name using Maps. Once saved, tap the 🗺 map icon to open it in Apple Maps.
+                    • **Date** — defaults to today; tap to change it.
+                    """)
+                } label: {
+                    helpRow(icon: "fork.knife", color: .orange, title: "Restaurant Info")
+                }
+            }
+
+            // MARK: People
+            Section("People") {
+                DisclosureGroup {
+                    helpText("""
+                    Add people to the bill using any of these methods:
+                    • **Type manually** — enter a name (and optional phone number) then tap +.
+                    • **Contacts** — tap the blue Contacts button to pick from your address book.
+                    • **Add Group** — tap the indigo button to import everyone from a saved Contact Group in one tap. Duplicates (same name) are skipped automatically.
+                    • **Save as Group** — after adding people, tap the teal "Save as Group" button to store them as a reusable group for future bills.
+                    • Swipe left on a person to remove them from the bill.
+                    """)
+                } label: {
+                    helpRow(icon: "person.2", color: .indigo, title: "Adding People")
+                }
+
+                DisclosureGroup {
+                    helpText("""
+                    Go to the **Groups** tab to create and manage reusable lists of people.
+                    • Tap **+** to create a new group — give it a name and add members from your Contacts.
+                    • Tap a group to edit its name or members.
+                    • Swipe left to delete a group.
+                    • Groups you save from a bill (via "Save as Group") also appear here.
+                    """)
+                } label: {
+                    helpRow(icon: "folder.badge.person.crop", color: .purple, title: "Contact Groups")
+                }
+            }
+
+            // MARK: Items
+            Section("Items") {
+                DisclosureGroup {
+                    helpText("""
+                    • Tap **+ Add Item** to add a dish or drink with a name and price.
+                    • Tap an item to edit its name, price, or who shared it.
+                    • Assign consumers by toggling each person's name in the item editor — the cost is split equally among all selected people.
+                    • Swipe left on an item to delete it.
+                    • An item with no assigned consumers is split among everyone on the bill.
+                    """)
+                } label: {
+                    helpRow(icon: "cart", color: .green, title: "Adding & Assigning Items")
+                }
+            }
+
+            // MARK: Tip & Tax
+            Section("Tip & Tax") {
+                DisclosureGroup {
+                    helpText("""
+                    • Adjust the **Tip %** and **Tax %** sliders in the bill form.
+                    • Toggle **Pre-tax tip** to calculate tip on the subtotal (before tax), or off to calculate tip on the post-tax total — varies by country convention.
+                    • Each person's share is automatically updated as you change these values.
+                    """)
+                } label: {
+                    helpRow(icon: "percent", color: .teal, title: "Tip & Tax")
+                }
+            }
+
+            // MARK: Payments
+            Section("Payments") {
+                DisclosureGroup {
+                    helpText("""
+                    Collect payment from each person directly in the app:
+                    • **Apple Pay** — tap the Apple Pay button on a person's row to request their share via Apple Pay.
+                    • **Zelle** — enter a Zelle email or phone in the People section. Each person's row shows a Zelle deep-link button that opens the Zelle app pre-filled with their owed amount and a note.
+                    """)
+                } label: {
+                    helpRow(icon: "creditcard", color: .mint, title: "Collecting Payment")
+                }
+            }
+
+            // MARK: Receipt Scanning
+            Section("Receipt Scanning") {
+                DisclosureGroup {
+                    helpText("""
+                    Tap **Scan Receipt** in the Bill tab to use the camera (or photo library) to photograph a receipt.
+                    • The app uses on-device OCR to detect item names and prices automatically.
+                    • Review the scanned items — you can edit any that weren't read correctly.
+                    • Scanning works best on flat, well-lit receipts with clear text.
+                    """)
+                } label: {
+                    helpRow(icon: "camera.viewfinder", color: .red, title: "Scanning a Receipt")
+                }
+            }
+
+            // MARK: Sharing & Export
+            Section("Sharing & Export") {
+                DisclosureGroup {
+                    helpText("""
+                    • **Export PDF** — generates a formatted PDF receipt showing each person's itemised share. Use the share sheet to send it via Messages, Mail, AirDrop, etc.
+                    • **Share Bill** — sends a deep-link URL that another iPhone with this app can open to load the exact same bill (people, items, tip, and tax).
+                    • **History tab** — view all saved bills. Tap a bill to see its full breakdown, export it as PDF, or share it.
+                    • **Export All Bills** — in the History tab, export every saved bill as a single JSON file for backup.
+                    """)
+                } label: {
+                    helpRow(icon: "square.and.arrow.up", color: .blue, title: "Sharing & Exporting")
+                }
+            }
+
+            // MARK: Analytics
+            Section("Analytics") {
+                DisclosureGroup {
+                    helpText("""
+                    The **Analytics** tab shows spending summaries across all your saved bills.
+                    • See total spend per person over time.
+                    • Bar charts break down each person's contributions across saved bills.
+                    • Use this to spot who consistently orders the most!
+                    """)
+                } label: {
+                    helpRow(icon: "chart.bar", color: .yellow, title: "Analytics")
+                }
+            }
+
+            // MARK: Settings
+            Section("Settings") {
+                DisclosureGroup {
+                    helpText("""
+                    • **Appearance** — choose Light, Dark, or System to match your iPhone's display setting.
+                    • Future settings will appear here as the app grows.
+                    """)
+                } label: {
+                    helpRow(icon: "gearshape", color: .gray, title: "App Settings")
+                }
+            }
+        }
+        .navigationTitle("How to Use")
+        .navigationBarTitleDisplayMode(.large)
+    }
+
+    private func helpRow(icon: String, color: Color, title: String) -> some View {
+        Label {
+            Text(title).fontWeight(.medium)
+        } icon: {
+            Image(systemName: icon)
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(RoundedRectangle(cornerRadius: 6).fill(color))
+        }
+    }
+
+    private func helpText(_ markdown: String) -> some View {
+        Text(LocalizedStringKey(markdown))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 6)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -1329,7 +1523,8 @@ struct CurrentBillView: View {
     @State private var itemToEdit: Item? = nil
     @State private var showingShareSheet = false
     @State private var billShareURL: URL? = nil
-    
+    @State private var showingRestaurantSearch = false
+
     var body: some View {
         NavigationView {
             VStack {
@@ -1355,10 +1550,37 @@ struct CurrentBillView: View {
                 }
                 Form {
                     Section("Restaurant") {
-                                            TextField("Enter restaurant name", text: $vm.bill.restaurantName)
-                                                .autocapitalization(.words)
-                                            DatePicker("Date", selection: $vm.bill.date, displayedComponents: .date)
-                                        }
+                        TextField("Enter restaurant name", text: $vm.bill.restaurantName)
+                            .autocapitalization(.words)
+                        HStack {
+                            TextField("Address (optional)", text: Binding(
+                                get: { vm.bill.restaurantAddress ?? "" },
+                                set: { vm.bill.restaurantAddress = $0.isEmpty ? nil : $0 }
+                            ))
+                            .autocapitalization(.words)
+                            if let address = vm.bill.restaurantAddress, !address.isEmpty {
+                                Button {
+                                    let encoded = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+                                    if let url = URL(string: "maps://?q=\(encoded)") {
+                                        UIApplication.shared.open(url)
+                                    }
+                                } label: {
+                                    Image(systemName: "map.fill")
+                                        .foregroundStyle(.blue)
+                                }
+                                .buttonStyle(.borderless)
+                            } else {
+                                Button {
+                                    showingRestaurantSearch = true
+                                } label: {
+                                    Image(systemName: "magnifyingglass")
+                                        .foregroundStyle(.blue)
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                        DatePicker("Date", selection: $vm.bill.date, displayedComponents: .date)
+                    }
                     Section {
                         if isPeopleExpanded {
                             PeopleEditor()
@@ -1539,7 +1761,12 @@ struct CurrentBillView: View {
                     BillShareSheet(bill: vm.bill, shareURL: billShareURL)
                 }
             }
-        
+            .sheet(isPresented: $showingRestaurantSearch) {
+                RestaurantSearchSheet(restaurantName: vm.bill.restaurantName) { address in
+                    vm.bill.restaurantAddress = address
+                }
+            }
+
     }
 
     // MARK: - PDF Export
@@ -1826,6 +2053,100 @@ struct SavedBillsView: View {
     }
 }
 
+// MARK: - Restaurant Search Sheet
+/// Searches for the restaurant by name using MapKit and lets the user pick
+/// a result to populate the bill's address field.
+struct RestaurantSearchSheet: View {
+    let restaurantName: String
+    let onSelect: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var query: String
+    @State private var results: [MKMapItem] = []
+    @State private var isSearching = false
+
+    init(restaurantName: String, onSelect: @escaping (String) -> Void) {
+        self.restaurantName = restaurantName
+        self.onSelect = onSelect
+        _query = State(initialValue: restaurantName)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if isSearching {
+                    HStack { Spacer(); ProgressView(); Spacer() }
+                } else if results.isEmpty {
+                    Text("No results — try a different search")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(results, id: \.self) { item in
+                        Button {
+                            if let address = formatted(item.placemark) {
+                                onSelect(address)
+                                dismiss()
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name ?? "Unknown")
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(.primary)
+                                if let address = formatted(item.placemark) {
+                                    Text(address)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Find Restaurant")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $query, prompt: "Search by name or address")
+            .onSubmit(of: .search) { search() }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            .task { search() }
+        }
+    }
+
+    private func search() {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return }
+        isSearching = true
+        Task {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = q
+            request.resultTypes = .pointOfInterest
+            do {
+                let response = try await MKLocalSearch(request: request).start()
+                results = response.mapItems
+            } catch {
+                results = []
+            }
+            isSearching = false
+        }
+    }
+
+    private func formatted(_ placemark: CLPlacemark) -> String? {
+        var parts: [String] = []
+        if let number = placemark.subThoroughfare, let street = placemark.thoroughfare {
+            parts.append("\(number) \(street)")
+        } else if let street = placemark.thoroughfare {
+            parts.append(street)
+        }
+        if let city = placemark.locality { parts.append(city) }
+        if let state = placemark.administrativeArea { parts.append(state) }
+        if let zip = placemark.postalCode { parts.append(zip) }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
+}
+
 // MARK: - Add to People Editor: save persons directly into a group
 struct SavePeopleToGroupView: View {
     var persons: [Person]
@@ -1862,9 +2183,14 @@ struct PeopleEditor: View {
     @EnvironmentObject private var groupsVM: ContactGroupsViewModel
     @State private var newName = ""
     @State private var newPhone = ""
-    @State private var showingContacts = false
-    @State private var showingGroupPicker = false
-    // REPLACED_MARKER
+    @State private var activeSheet: PeopleEditorSheet? = nil
+
+    enum PeopleEditorSheet: Identifiable {
+        case contacts, groupPicker, saveAsGroup
+        var id: Int {
+            switch self { case .contacts: 0; case .groupPicker: 1; case .saveAsGroup: 2 }
+        }
+    }
 
     var body: some View {
         // No nested List — this view lives inside a Form/Section in CurrentBillView.
@@ -1898,7 +2224,7 @@ struct PeopleEditor: View {
 
             // Contacts picker button
             Button {
-                if !showingContacts { showingContacts = true }
+                activeSheet = .contacts
             } label: {
                 HStack {
                     Image(systemName: "person.crop.circle.badge.plus")
@@ -1913,7 +2239,7 @@ struct PeopleEditor: View {
             // Group picker button — only shown when groups exist
             if !groupsVM.groups.isEmpty {
                 Button {
-                    showingGroupPicker = true
+                    activeSheet = .groupPicker
                 } label: {
                     HStack {
                         Image(systemName: "folder.badge.person.crop")
@@ -1921,6 +2247,22 @@ struct PeopleEditor: View {
                     }
                     .padding(3)
                     .background(Color.indigo)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+            }
+
+            // Save current people as a new group
+            if !vm.bill.people.isEmpty {
+                Button {
+                    activeSheet = .saveAsGroup
+                } label: {
+                    HStack {
+                        Image(systemName: "folder.badge.plus")
+                        Text("Save as Group")
+                    }
+                    .padding(3)
+                    .background(Color.teal)
                     .foregroundColor(.white)
                     .cornerRadius(10)
                 }
@@ -1937,23 +2279,25 @@ struct PeopleEditor: View {
                 ))
             }
 
-            // Invisible anchor rows — .sheet must be on a concrete view, not Group.
+            // Single invisible anchor — drives all three sheets via enum.
             Color.clear
                 .frame(height: 0)
                 .listRowInsets(EdgeInsets())
-                .sheet(isPresented: $showingContacts) {
-                    MultiContactPicker { persons in
-                        vm.bill.people.append(contentsOf: persons)
-                    }
-                }
-            Color.clear
-                .frame(height: 0)
-                .listRowInsets(EdgeInsets())
-                .sheet(isPresented: $showingGroupPicker) {
-                    GroupPickerSheet(groups: groupsVM.groups) { selectedGroup in
-                        let existingIDs = Set(vm.bill.people.map { $0.id })
-                        let newMembers = selectedGroup.members.filter { !existingIDs.contains($0.id) }
-                        vm.bill.people.append(contentsOf: newMembers)
+                .listRowSeparator(.hidden)
+                .sheet(item: $activeSheet) { sheet in
+                    switch sheet {
+                    case .contacts:
+                        MultiContactPicker { persons in
+                            vm.bill.people.append(contentsOf: persons)
+                        }
+                    case .groupPicker:
+                        GroupPickerSheet(groups: groupsVM.groups) { selectedGroup in
+                            let existingNames = Set(vm.bill.people.map { $0.name.lowercased() })
+                            let newMembers = selectedGroup.members.filter { !existingNames.contains($0.name.lowercased()) }
+                            vm.bill.people.append(contentsOf: newMembers)
+                        }
+                    case .saveAsGroup:
+                        SaveBillPeopleAsGroupSheet(people: vm.bill.people)
                     }
                 }
         }
@@ -2002,6 +2346,56 @@ struct GroupPickerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Save Bill People As Group Sheet
+/// Sheet that lets the user save the current bill's people as a new contact group.
+struct SaveBillPeopleAsGroupSheet: View {
+    let people: [Person]
+    @EnvironmentObject private var groupsVM: ContactGroupsViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var groupName = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Group Name") {
+                    TextField("e.g. Dinner Friends", text: $groupName)
+                }
+                Section("Members (\(people.count))") {
+                    ForEach(people) { person in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(person.name)
+                                .fontWeight(.medium)
+                            if let phone = person.phone, !phone.isEmpty {
+                                Text(phone)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+            .navigationTitle("Save as Group")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        groupsVM.addGroup(
+                            name: groupName.trimmingCharacters(in: .whitespaces),
+                            members: people
+                        )
+                        dismiss()
+                    }
+                    .disabled(groupName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
