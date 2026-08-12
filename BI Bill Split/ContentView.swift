@@ -18,8 +18,21 @@ struct Person: Identifiable, Hashable, Codable {
     let id: UUID
     var name: String
     var phone: String?
-    init(id: UUID = UUID(), name: String, phone: String? = nil) { self.id = id; self.name = name ;
-        self.phone = phone}
+    var isBirthday: Bool
+
+    init(id: UUID = UUID(), name: String, phone: String? = nil, isBirthday: Bool = false) {
+        self.id = id; self.name = name; self.phone = phone; self.isBirthday = isBirthday
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id         = (try? c.decode(UUID.self,   forKey: .id))   ?? UUID()
+        name       = (try? c.decode(String.self, forKey: .name)) ?? ""
+        phone      = try? c.decodeIfPresent(String.self, forKey: .phone)
+        isBirthday = (try? c.decode(Bool.self,   forKey: .isBirthday)) ?? false
+    }
+
+    enum CodingKeys: String, CodingKey { case id, name, phone, isBirthday }
 }
 
 struct Item: Identifiable, Hashable, Codable {
@@ -585,12 +598,33 @@ final class BillViewModel: ObservableObject {
     var tipAmount: Double { (subtotal  + (isPreTaxCalc ? 0 : taxAmount)) * bill.tipPercent / 100.0 }
     var grandTotal: Double { subtotal + taxAmount + tipAmount }
 
-    /// Per-person share for items (before tax/tip), accounting for shared items.
+    /// Per-person share for items (before tax/tip), accounting for shared items and birthday people.
+    /// Birthday people pay $0; their item costs are absorbed by the non-birthday consumers.
     func preTaxShare(for personID: UUID) -> Double {
-        bill.items.reduce(0) { partial, item in
-            guard item.consumers.contains(personID), !item.consumers.isEmpty else { return partial }
-            return partial + item.price / Double(item.consumers.count)
+        let birthdayIDs = Set(bill.people.filter { $0.isBirthday }.map { $0.id })
+        let nonBirthdayIDs = Set(bill.people.filter { !$0.isBirthday }.map { $0.id })
+
+        if birthdayIDs.contains(personID) { return 0 }
+
+        return bill.items.reduce(0.0) { partial, item in
+            guard !item.consumers.isEmpty else { return partial }
+            let effectiveConsumers = birthdayIDs.isEmpty
+                ? item.consumers
+                : item.consumers.subtracting(birthdayIDs)
+            if effectiveConsumers.isEmpty {
+                // All consumers are birthday people — split cost among every non-birthday person
+                guard !nonBirthdayIDs.isEmpty, nonBirthdayIDs.contains(personID) else { return partial }
+                return partial + item.price / Double(nonBirthdayIDs.count)
+            } else {
+                guard effectiveConsumers.contains(personID) else { return partial }
+                return partial + item.price / Double(effectiveConsumers.count)
+            }
         }
+    }
+
+    func toggleBirthday(for personID: UUID) {
+        guard let idx = bill.people.firstIndex(where: { $0.id == personID }) else { return }
+        bill.people[idx].isBirthday.toggle()
     }
 
     /// Distribute tax and tip proportionally to each person's pre-tax share.
@@ -993,10 +1027,11 @@ struct HelpView: View {
                 DisclosureGroup {
                     helpText("""
                     1. Go to the **Bill** tab.
-                    2. Enter the restaurant name (required) and optionally an address and date.
-                    3. Add people, then add items and assign them.
-                    4. Adjust tip and tax as needed.
-                    5. Tap **Save** when you're done — the bill appears in History.
+                    2. Enter the restaurant name (required), and optionally an address and date.
+                    3. Add people using the manual field, Contacts, or a saved Group.
+                    4. Add items and assign them to the people who ordered them.
+                    5. Adjust tip and tax as needed.
+                    6. Tap **Save** — the bill appears in the History tab.
                     """)
                 } label: {
                     helpRow(icon: "list.bullet.clipboard", color: .blue, title: "Getting Started")
@@ -1010,7 +1045,7 @@ struct HelpView: View {
                 DisclosureGroup {
                     helpText("""
                     • **Name** — required before you can save, share, or export.
-                    • **Address** — optional. Tap the 🔍 magnifying glass to search for the restaurant by name using Maps. Once saved, tap the 🗺 map icon to open it in Apple Maps.
+                    • **Address** — optional. Tap the 🔍 magnifying glass to search for the restaurant by name using Maps. Tap a result to fill the address field automatically. Once an address is saved, the icon switches to a 🗺 map button — tap it to open the location in Apple Maps.
                     • **Date** — defaults to today; tap to change it.
                     """)
                 } label: {
@@ -1024,9 +1059,9 @@ struct HelpView: View {
                     helpText("""
                     Add people to the bill using any of these methods:
                     • **Type manually** — enter a name (and optional phone number) then tap +.
-                    • **Contacts** — tap the blue Contacts button to pick from your address book.
-                    • **Add Group** — tap the indigo button to import everyone from a saved Contact Group in one tap. Duplicates (same name) are skipped automatically.
-                    • **Save as Group** — after adding people, tap the teal "Save as Group" button to store them as a reusable group for future bills.
+                    • **Contacts** (blue button) — pick one or more people from your address book.
+                    • **Add Group** (indigo button) — import everyone from a saved Contact Group in one tap. Anyone already in the bill by name is skipped automatically.
+                    • **Save as Group** (teal button, visible when at least one person is added) — saves the current list of people as a new reusable Contact Group for future bills.
                     • Swipe left on a person to remove them from the bill.
                     """)
                 } label: {
@@ -1039,10 +1074,23 @@ struct HelpView: View {
                     • Tap **+** to create a new group — give it a name and add members from your Contacts.
                     • Tap a group to edit its name or members.
                     • Swipe left to delete a group.
-                    • Groups you save from a bill (via "Save as Group") also appear here.
+                    • Groups saved from a bill (via "Save as Group") also appear here.
                     """)
                 } label: {
                     helpRow(icon: "folder.badge.person.crop", color: .purple, title: "Contact Groups")
+                }
+
+                DisclosureGroup {
+                    helpText("""
+                    Mark someone as the birthday person to make their share $0 — covered by everyone else.
+                    • Tap the **Birthday** capsule button on any person's row to flag them. Tap **Remove Birthday** to unmark.
+                    • Multiple people can be marked at the same time.
+                    • The 🎂 icon and pink highlight appear on their row; payment buttons are hidden since they owe nothing.
+                    • **How the split works:** items the birthday person ordered are redistributed to the non-birthday consumers of those items. If an item was ordered exclusively by birthday people, its cost is split among all non-birthday people in the bill.
+                    • Birthday indicators appear in the Share Bill preview, on both pages of the exported PDF, in the Saved Bills list, and in the Analytics tab.
+                    """)
+                } label: {
+                    helpRow(icon: "birthday.cake", color: .pink, title: "Birthday Person 🎂")
                 }
             }
 
@@ -1054,7 +1102,7 @@ struct HelpView: View {
                     • Tap an item to edit its name, price, or who shared it.
                     • Assign consumers by toggling each person's name in the item editor — the cost is split equally among all selected people.
                     • Swipe left on an item to delete it.
-                    • An item with no assigned consumers is split among everyone on the bill.
+                    • An item with no assigned consumers is split among all non-birthday people in the bill.
                     """)
                 } label: {
                     helpRow(icon: "cart", color: .green, title: "Adding & Assigning Items")
@@ -1067,7 +1115,7 @@ struct HelpView: View {
                     helpText("""
                     • Adjust the **Tip %** and **Tax %** sliders in the bill form.
                     • Toggle **Pre-tax tip** to calculate tip on the subtotal (before tax), or off to calculate tip on the post-tax total — varies by country convention.
-                    • Each person's share is automatically updated as you change these values.
+                    • Each person's share updates instantly as you move the sliders.
                     """)
                 } label: {
                     helpRow(icon: "percent", color: .teal, title: "Tip & Tax")
@@ -1079,25 +1127,25 @@ struct HelpView: View {
                 DisclosureGroup {
                     helpText("""
                     Collect payment from each person directly in the app:
-                    • **Apple Pay** — tap the Apple Pay button on a person's row to request their share via Apple Pay.
-                    • **Zelle** — enter a Zelle email or phone in the People section. Each person's row shows a Zelle deep-link button that opens the Zelle app pre-filled with their owed amount and a note.
+                    • **Apple Pay** — tap the Apple Pay button on a person's row to request their share via Apple Pay contactless payment.
+                    • **Zelle** — enter a Zelle email or phone number in the People section. Each person's row shows a Zelle button that opens the Zelle app pre-filled with their owed amount and a note.
+                    • Birthday-flagged people show $0.00 and no payment buttons since they owe nothing.
                     """)
                 } label: {
                     helpRow(icon: "creditcard", color: .mint, title: "Collecting Payment")
                 }
             }
 
-            // MARK: Receipt Scanning
-            Section("Receipt Scanning") {
+            // MARK: Receipt Scanning & Photos
+            Section("Receipt & Photos") {
                 DisclosureGroup {
                     helpText("""
-                    Tap **Scan Receipt** in the Bill tab to use the camera (or photo library) to photograph a receipt.
-                    • The app uses on-device OCR to detect item names and prices automatically.
-                    • Review the scanned items — you can edit any that weren't read correctly.
-                    • Scanning works best on flat, well-lit receipts with clear text.
+                    • **Scan Receipt** — uses the camera and on-device OCR to detect item names and prices from a physical receipt automatically. Review and correct any misread items before adding them.
+                    • **Attach Photo** — tap to attach an image of the receipt to the bill. A prompt lets you choose between **Take Photo** (camera) or **Choose from Gallery** (photo library). The attached image appears on page 2 of the exported PDF.
+                    • Scanning works best on flat, well-lit receipts with clear printed text.
                     """)
                 } label: {
-                    helpRow(icon: "camera.viewfinder", color: .red, title: "Scanning a Receipt")
+                    helpRow(icon: "camera.viewfinder", color: .red, title: "Scanning & Attaching Photos")
                 }
             }
 
@@ -1105,13 +1153,30 @@ struct HelpView: View {
             Section("Sharing & Export") {
                 DisclosureGroup {
                     helpText("""
-                    • **Export PDF** — generates a formatted PDF receipt showing each person's itemised share. Use the share sheet to send it via Messages, Mail, AirDrop, etc.
-                    • **Share Bill** — sends a deep-link URL that another iPhone with this app can open to load the exact same bill (people, items, tip, and tax).
-                    • **History tab** — view all saved bills. Tap a bill to see its full breakdown, export it as PDF, or share it.
+                    • **Export PDF** — generates a two-page PDF: page 1 shows the participants (with 🎂 indicators) and itemised list; page 2 shows each person's share breakdown and the attached receipt photo if any. Share via Messages, Mail, AirDrop, etc.
+                    • **Share Bill** — sends a deep-link URL that another iPhone with this app can open to load the exact same bill (people, items, birthday flags, tip, and tax).
+                    • The **Share Bill preview** shows a summary card including any birthday people flagged on the bill.
+                    • **History tab** — view all saved bills. Tap a bill to load it, swipe left to share it, or swipe to delete.
                     • **Export All Bills** — in the History tab, export every saved bill as a single JSON file for backup.
                     """)
                 } label: {
                     helpRow(icon: "square.and.arrow.up", color: .blue, title: "Sharing & Exporting")
+                }
+            }
+
+            // MARK: Saved Bills (History)
+            Section("History") {
+                DisclosureGroup {
+                    helpText("""
+                    The **Saved Bills** tab lists all your past bills with their total amount.
+                    • **Filter by person** — use the search bar to type a name. The list narrows to bills that include that person, and each row shows that person's individual share for the bill.
+                    • **Birthday indicator** — bills where someone was flagged as birthday show a pink 🎂 line with their name.
+                    • Tap a bill to load it into the Bill tab for review or editing.
+                    • Swipe left on a row to share the bill via deep-link.
+                    • Swipe right on a row to delete it (deletion respects the active filter).
+                    """)
+                } label: {
+                    helpRow(icon: "tray.full", color: .brown, title: "Saved Bills & History")
                 }
             }
 
@@ -1120,9 +1185,12 @@ struct HelpView: View {
                 DisclosureGroup {
                     helpText("""
                     The **Analytics** tab shows spending summaries across all your saved bills.
-                    • See total spend per person over time.
-                    • Bar charts break down each person's contributions across saved bills.
-                    • Use this to spot who consistently orders the most!
+                    • **Over Time** — a line chart of total bill amounts over your chosen date range (1 month, 3 months, 6 months, or all time).
+                    • **Top Spenders** — a ranked list and bar chart of the top 10 people by total spend across all bills. Each entry shows:
+                      – Total spent across all bills
+                      – Number of bills they appeared in
+                      – Average spent per bill
+                    • Birthday-flagged shares ($0) are correctly excluded from totals, so they don't skew the rankings.
                     """)
                 } label: {
                     helpRow(icon: "chart.bar", color: .yellow, title: "Analytics")
@@ -1133,8 +1201,8 @@ struct HelpView: View {
             Section("Settings") {
                 DisclosureGroup {
                     helpText("""
-                    • **Appearance** — choose Light, Dark, or System to match your iPhone's display setting.
-                    • Future settings will appear here as the app grows.
+                    • **Appearance** — choose Light, Dark, or System to match your iPhone's display setting in Settings → Display & Brightness.
+                    • **How to Use This App** — you're reading it!
                     """)
                 } label: {
                     helpRow(icon: "gearshape", color: .gray, title: "App Settings")
@@ -1209,10 +1277,11 @@ struct SpendingChartView: View {
     }
 
     // MARK: Top-10 spenders across all saved bills
-    private var topSpenders: [(name: String, total: Double)] {
+    private var topSpenders: [(name: String, total: Double, billCount: Int)] {
         // Aggregate each person's share across every saved bill.
         // Key: person name (best proxy we have without a global person ID).
         var totals: [String: Double] = [:]
+        var counts: [String: Int] = [:]
         for bill in vm.savedBills {
             let sub = bill.items.reduce(0) { $0 + $1.price }
             guard sub > 0 else { continue }
@@ -1228,10 +1297,11 @@ struct SpendingChartView: View {
                 let ratio = preTax / sub
                 let share = preTax + tax * ratio + tip * ratio
                 totals[person.name, default: 0] += share
+                counts[person.name, default: 0] += 1
             }
         }
         return totals
-            .map { (name: $0.key, total: $0.value) }
+            .map { (name: $0.key, total: $0.value, billCount: counts[$0.key, default: 0]) }
             .sorted { $0.total > $1.total }
             .prefix(10)
             .map { $0 }
@@ -1347,8 +1417,14 @@ struct SpendingChartView: View {
                                     .foregroundStyle(.white)
                             }
 
-                            Text(entry.name)
-                                .fontWeight(idx < 3 ? .semibold : .regular)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.name)
+                                    .fontWeight(idx < 3 ? .semibold : .regular)
+                                let avg = entry.billCount > 0 ? entry.total / Double(entry.billCount) : 0
+                                Text("\(entry.billCount) bill\(entry.billCount == 1 ? "" : "s") · avg \(avg.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
 
                             Spacer()
 
@@ -1515,6 +1591,8 @@ struct CurrentBillView: View {
     @State private var exportURL: URL?
     @State private var showingReceipt = false
     @State private var showingImagePicker = false
+    @State private var showingAttachOptions = false
+    @State private var imagePickerSource: UIImagePickerController.SourceType = .camera
     @State private var showingReceiptZoom = false
     @State private var isParsingReceipt = false
     @State private var parsingError: String? = nil
@@ -1662,7 +1740,7 @@ struct CurrentBillView: View {
                         Button { showingScanner = true } label: {
                             Label("Scan Receipt", systemImage: "document.viewfinder.fill")
                         }
-                        Button { showingImagePicker = true } label: {
+                        Button { showingAttachOptions = true } label: {
                             Label("Attach Photo", systemImage: "camera")
                         }
                         Divider()
@@ -1741,13 +1819,24 @@ struct CurrentBillView: View {
                     }
                 }
             }
+            .confirmationDialog("Attach Photo", isPresented: $showingAttachOptions, titleVisibility: .visible) {
+                Button("Take Photo") {
+                    imagePickerSource = .camera
+                    showingImagePicker = true
+                }
+                Button("Choose from Gallery") {
+                    imagePickerSource = .photoLibrary
+                    showingImagePicker = true
+                }
+                Button("Cancel", role: .cancel) {}
+            }
             .sheet(isPresented: $showingImagePicker) {
-                        ImagePicker(sourceType: .camera) { image in
-                            if let image = image {
-                                vm.attachReceiptImage(image)
-                            }
-                        }
+                ImagePicker(sourceType: imagePickerSource) { image in
+                    if let image = image {
+                        vm.attachReceiptImage(image)
                     }
+                }
+            }
             .sheet(isPresented: Binding(get: { exportURL != nil }, set: { if !$0 { exportURL = nil } })) {
                 if let exportURL { ShareSheet(activityItems: [exportURL]) }
             }
@@ -1905,6 +1994,15 @@ struct BillShareSheet: View {
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    let birthdayPeople = bill.people.filter { $0.isBirthday }
+                    if !birthdayPeople.isEmpty {
+                        HStack(spacing: 4) {
+                            Text("🎂")
+                            Text(birthdayPeople.map { $0.name }.joined(separator: ", ") + " · covered by the group")
+                                .foregroundStyle(.pink)
+                        }
+                        .font(.caption)
+                    }
                 }
                 .padding()
                 .background(Color(.secondarySystemGroupedBackground))
@@ -1967,65 +2065,127 @@ struct SavedBillsView: View {
     @State private var showingExporter = false
     @State private var exportURL: URL?
     @State private var billToShare: Bill? = nil
+    @State private var searchText = ""
+
+    private var isFiltering: Bool {
+        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var filteredBills: [Bill] {
+        guard isFiltering else { return vm.savedBills }
+        let query = searchText.lowercased()
+        return vm.savedBills.filter { bill in
+            bill.people.contains { $0.name.lowercased().contains(query) }
+        }
+    }
+
+    /// Calculates a named person's proportional share (pre-tax items + tax + tip) in a bill.
+    private func personShare(in bill: Bill, query: String) -> Double? {
+        let sub = bill.items.reduce(0.0) { $0 + $1.price }
+        guard sub > 0,
+              let person = bill.people.first(where: { $0.name.lowercased().contains(query) })
+        else { return nil }
+        let preTax = bill.items.reduce(0.0) { partial, item in
+            guard item.consumers.contains(person.id), !item.consumers.isEmpty else { return partial }
+            return partial + item.price / Double(item.consumers.count)
+        }
+        guard preTax > 0 else { return nil }
+        let ratio = preTax / sub
+        let tax = sub * bill.taxPercent / 100
+        let tip = sub * bill.tipPercent / 100
+        return preTax + tax * ratio + tip * ratio
+    }
 
     var body: some View {
-            NavigationView {
-                List {
-                    ForEach(vm.savedBills) { bill in
-                        VStack(alignment: .leading) {
+        NavigationView {
+            List {
+                ForEach(filteredBills) { bill in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .firstTextBaseline) {
                             Text(bill.restaurantName)
                                 .font(.headline).foregroundStyle(.blue)
-                            Text("Date: \(bill.date, formatter: dateFormatter)")
-                                .font(.subheadline)
-                            Text("People: \(bill.people.map { $0.name }.joined(separator: ", "))")
-                                .font(.subheadline)
+                            Spacer()
+                            Text(bill.totalAmount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                                .font(.subheadline).fontWeight(.semibold)
                         }
-                        .onTapGesture {
-                            vm.bill = bill
-                            selectedTab = 0 // switch to Current Bill tab
-                        }
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            Button {
-                                billToShare = bill
-                            } label: {
-                                Label("Share", systemImage: "person.2.wave.2")
+                        Text(bill.date, formatter: dateFormatter)
+                            .font(.subheadline).foregroundStyle(.secondary)
+                        if isFiltering, let share = personShare(in: bill, query: searchText.lowercased()) {
+                            HStack {
+                                Text(searchText.trimmingCharacters(in: .whitespaces) + "'s share")
+                                    .font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                                Text(share, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                                    .font(.caption).fontWeight(.medium).foregroundStyle(.secondary)
                             }
-                            .tint(.indigo)
+                        } else {
+                            Text(bill.people.map { $0.name }.joined(separator: ", "))
+                                .font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        let birthdayPeople = bill.people.filter { $0.isBirthday }
+                        if !birthdayPeople.isEmpty {
+                            HStack(spacing: 4) {
+                                Text("🎂")
+                                Text(birthdayPeople.map { $0.name }.joined(separator: ", "))
+                                    .foregroundStyle(.pink)
+                            }
+                            .font(.caption)
                         }
                     }
-                    .onDelete { offsets in
-                        vm.deleteBill(at: offsets)
+                    .padding(.vertical, 2)
+                    .onTapGesture {
+                        vm.bill = bill
+                        selectedTab = 0
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                        Button {
+                            billToShare = bill
+                        } label: {
+                            Label("Share", systemImage: "person.2.wave.2")
+                        }
+                        .tint(.indigo)
                     }
                 }
-                .navigationTitle("Saved Bills")
-                .toolbar { //EditButton()
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Export Bills") {
-                            if let url = vm.exportAllBills() {
-                                exportURL = url
-                                showingExporter = true
-                            }
-                        }
-                    }
+                .onDelete { offsets in
+                    // Map filtered-list offsets back to savedBills offsets for deletion.
+                    let idsToDelete = Set(offsets.map { filteredBills[$0].id })
+                    let originalOffsets = IndexSet(
+                        vm.savedBills.indices.filter { idsToDelete.contains(vm.savedBills[$0].id) }
+                    )
+                    vm.deleteBill(at: originalOffsets)
                 }
-                .fileExporter(isPresented: $showingExporter, document: ExportedFile(url: exportURL), contentType: .json, defaultFilename: "bills_export") { result in
-                               switch result {
-                               case .success(let url):
-                                   print("Exported to \(url)")
-                               case .failure(let error):
-                                   print("Export failed: \(error)")
-                               }
-                           }
-                .sheet(item: $billToShare) { bill in
-                    if let jsonData = try? JSONEncoder().encode(bill),
-                       let base64 = jsonData.base64EncodedString()
-                           .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                       let url = URL(string: "billsplit://import?data=\(base64)") {
-                        BillShareSheet(bill: bill, shareURL: url)
+            }
+            .searchable(text: $searchText, prompt: "Filter by person name")
+            .navigationTitle("Saved Bills")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Export Bills") {
+                        if let url = vm.exportAllBills() {
+                            exportURL = url
+                            showingExporter = true
+                        }
                     }
                 }
             }
+            .fileExporter(isPresented: $showingExporter, document: ExportedFile(url: exportURL), contentType: .json, defaultFilename: "bills_export") { result in
+                switch result {
+                case .success(let url):
+                    print("Exported to \(url)")
+                case .failure(let error):
+                    print("Export failed: \(error)")
+                }
+            }
+            .sheet(item: $billToShare) { bill in
+                if let jsonData = try? JSONEncoder().encode(bill),
+                   let base64 = jsonData.base64EncodedString()
+                       .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                   let url = URL(string: "billsplit://import?data=\(base64)") {
+                    BillShareSheet(bill: bill, shareURL: url)
+                }
+            }
         }
+    }
     private var dateFormatter: DateFormatter {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
@@ -2424,29 +2584,61 @@ struct PersonRow: View {
             // Name + total
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(person.name).fontWeight(.semibold)
+                    HStack(spacing: 6) {
+                        if person.isBirthday {
+                            Text("🎂")
+                                .font(.body)
+                        }
+                        Text(person.name).fontWeight(.semibold)
+                            .foregroundStyle(person.isBirthday ? Color.pink : Color.primary)
+                    }
                     if let phone = person.phone, !phone.isEmpty {
                         Text(phone)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if person.isBirthday {
+                        Text("Covered by the group 🎉")
+                            .font(.caption)
+                            .foregroundStyle(.pink)
+                    }
                 }
                 Spacer()
-                if hasShare {
-                    Text(share.total, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                        .fontWeight(.semibold)
+                VStack(alignment: .trailing, spacing: 2) {
+                    if person.isBirthday {
+                        Text("$0.00")
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.pink)
+                    } else if hasShare {
+                        Text(share.total, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                            .fontWeight(.semibold)
+                    }
+                    Button {
+                        vm.toggleBirthday(for: person.id)
+                    } label: {
+                        Label(person.isBirthday ? "Remove Birthday" : "Birthday",
+                              systemImage: person.isBirthday ? "birthday.cake.fill" : "birthday.cake")
+                            .font(.caption2)
+                            .labelStyle(.titleAndIcon)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(person.isBirthday ? Color.pink.opacity(0.15) : Color.secondary.opacity(0.12))
+                            .foregroundStyle(person.isBirthday ? Color.pink : Color.secondary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
 
             // Itemised breakdown
-            if hasShare {
+            if hasShare && !person.isBirthday {
                 Text("Items \(share.preTax.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))  •  Tax \(share.tax.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))  •  Tip \(share.tip.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            // Payment buttons
-            if hasShare {
+            // Payment buttons — hidden for birthday people (they owe nothing)
+            if hasShare && !person.isBirthday {
                 HStack(spacing: 8) {
                     // Apple Pay — person pays YOU (contactless, presented via UIKit)
                     if canApplePay {
@@ -3033,7 +3225,7 @@ struct ReceiptView: View {
 //                ForEach(vm.bill.people) { Text("• \($0.name)").font(.caption) }
 //            }
             //let names = [String](vm.bill.people.map(\.init(\.name)))
-            let names: [String] = vm.bill.people.map { $0.name }
+            let names: [String] = vm.bill.people.map { $0.isBirthday ? "🎂 \($0.name)" : $0.name }
             var chunkedNames: [[String]] {
                     stride(from: 0, to: names.count, by: 2).map {
                         Array(names[$0..<min($0 + 2, names.count)])
@@ -3052,6 +3244,12 @@ struct ReceiptView: View {
                 }
                 .padding()
             }
+            let birthdayNames = vm.bill.people.filter { $0.isBirthday }.map { $0.name }
+            if !birthdayNames.isEmpty {
+                Text("🎂 Birthday: \(birthdayNames.joined(separator: ", ")) — covered by the group")
+                    .font(.caption)
+                    .foregroundStyle(.pink)
+            }
             Divider()
             Text("Items").fontWeight(.semibold)
             VStack(alignment: .leading, spacing: 2) {
@@ -3060,7 +3258,7 @@ struct ReceiptView: View {
                         VStack(alignment: .leading) {
                             Text(item.name).font(.caption)
                             if !item.consumers.isEmpty {
-                                Text("Shared by: " + vm.bill.people.filter { item.consumers.contains($0.id) }.map { $0.name }.joined(separator: ", "))
+                                Text("Shared by: " + vm.bill.people.filter { item.consumers.contains($0.id) }.map { $0.isBirthday ? "🎂 \($0.name)" : $0.name }.joined(separator: ", "))
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
@@ -3102,13 +3300,24 @@ struct ReceiptView2: View {
                 ForEach(vm.bill.people) { person in
                     let share = vm.totalForPerson(person.id)
                     HStack {
-                        Text(person.name)
+                        HStack(spacing: 4) {
+                            if person.isBirthday { Text("🎂") }
+                            Text(person.name)
+                                .foregroundStyle(person.isBirthday ? .pink : .primary)
+                        }
                         Spacer()
-                        Text(share.total, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                        if person.isBirthday {
+                            Text("$0.00 · Covered by group 🎉")
+                                .foregroundStyle(.pink)
+                        } else {
+                            Text(share.total, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                        }
                     }
-                    Text("  Items: \(share.preTax.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))) | Tax: \(share.tax.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))) | Tip: \(share.tip.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    if !person.isBirthday {
+                        Text("  Items: \(share.preTax.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))) | Tax: \(share.tax.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))) | Tip: \(share.tip.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                     Divider()
                 }
             }
