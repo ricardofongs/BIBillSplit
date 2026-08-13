@@ -36,6 +36,13 @@
       color: #1d1d1f;
     }
 
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 18px 0 6px;
+      color: #1d1d1f;
+    }
+
     p, li { font-size: 1rem; color: #3a3a3c; }
     ul { padding-left: 22px; }
     ul li { margin-bottom: 6px; }
@@ -47,6 +54,50 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.06);
       margin-bottom: 24px;
     }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .feature-item {
+      background: #f5f5f7;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .feature-item .icon {
+      font-size: 1.6rem;
+      margin-bottom: 6px;
+    }
+
+    .feature-item strong {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+      color: #1d1d1f;
+    }
+
+    .feature-item span {
+      font-size: 0.82rem;
+      color: #86868b;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #e8f4fd;
+      color: #0071e3;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .badge.new { background: #e3f9e5; color: #1a7f37; }
 
     .faq-q {
       font-weight: 600;
@@ -89,6 +140,12 @@
       padding: 1px 5px;
       font-size: 0.9em;
     }
+
+    hr.section-rule {
+      border: none;
+      border-top: 1px solid #e5e5ea;
+      margin: 20px 0;
+    }
   </style>
 </head>
 <body>
@@ -103,19 +160,133 @@
   <!-- About -->
   <div class="card">
     <h2>About BI Splitter</h2>
-    <p>BI Splitter is an iOS app that makes splitting restaurant bills easy. Add people, assign items, scan receipts with AI, calculate tax and tip, export PDFs, and request payment — all from your iPhone.</p>
+    <p>BI Splitter is an iOS app that makes splitting restaurant bills easy. Add people, scan receipts, assign items, handle birthdays, sync in real time across phones at the table, calculate tax and tip, export PDFs, and request payment — all from your iPhone.</p>
+
+    <div class="feature-grid" style="margin-top:20px;">
+      <div class="feature-item">
+        <div class="icon">🍴</div>
+        <strong>Restaurant Info</strong>
+        <span>Name, address with Maps search, and date</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">👥</div>
+        <strong>People &amp; Groups</strong>
+        <span>Manual entry, Contacts, and reusable Groups</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">🎂</div>
+        <strong>Birthday Mode</strong>
+        <span>Flag someone's birthday — the group covers their share</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">📡</div>
+        <strong>Live Sync</strong>
+        <span>Real-time bill sync across nearby iPhones</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">📷</div>
+        <strong>Receipt Scanning</strong>
+        <span>Camera OCR parsing + photo attachment</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">📊</div>
+        <strong>Analytics</strong>
+        <span>Top spenders, averages, and spending over time</span>
+      </div>
+    </div>
   </div>
 
   <!-- Getting Started -->
   <div class="card">
     <h2>Getting Started</h2>
     <ul>
-      <li><strong>Add people</strong> — Tap the People section and type a name, import from Contacts, or load a saved group.</li>
-      <li><strong>Add items</strong> — Enter item name and price, then tap the person bubbles to assign who had it.</li>
-      <li><strong>Scan a receipt</strong> — Tap the ··· menu → Scan Receipt to use the camera and AI parsing.</li>
+      <li><strong>Restaurant</strong> — Enter a name (required to save), an optional address, and the date. Tap 🔍 next to the address to search for the restaurant in Maps; once saved the icon switches to 🗺 to open it in Apple Maps.</li>
+      <li><strong>Add people</strong> — Type a name in the People section and tap +, import from Contacts, or load a saved Contact Group. Tap <strong>Save as Group</strong> (teal button) to save the current list for future bills.</li>
+      <li><strong>Birthday?</strong> — Tap the <strong>Birthday</strong> capsule on a person's row. That person's share becomes $0 and is absorbed by everyone else automatically.</li>
+      <li><strong>Add items</strong> — Enter an item name and price, then tap the people who had it. Items shared by multiple people are split equally.</li>
+      <li><strong>Scan a receipt</strong> — Tap ··· → <strong>Scan Receipt</strong> to use the camera with on-device OCR, or <strong>Attach Photo</strong> to pick from your camera or gallery.</li>
+      <li><strong>Live Sync</strong> — Tap the 📡 antenna icon in the toolbar to let everyone at the table edit the same bill in real time over local WiFi/Bluetooth.</li>
       <li><strong>Review the summary</strong> — Scroll down to see each person's itemised share, including tax and tip.</li>
-      <li><strong>Export or share</strong> — Use the PDF export button to save a receipt, or Share Bill to send the full bill to another device.</li>
+      <li><strong>Export or share</strong> — Use the PDF export button to save a receipt, or <strong>Share Bill</strong> to send the full bill to another device.</li>
       <li><strong>Save the bill</strong> — Tap the save icon (↓) in the top right. You'll need to enter a restaurant name first.</li>
+    </ul>
+  </div>
+
+  <!-- Features in Detail -->
+  <div class="card">
+    <h2>Features in Detail</h2>
+
+    <h3>🍴 Restaurant Address &amp; Map</h3>
+    <p>The address field is optional. Tap the <strong>magnifying glass</strong> icon to open a search sheet pre-seeded with the restaurant name — results come from Apple Maps. Tap a result to fill the address automatically. Once an address is saved, the icon changes to a <strong>map pin</strong>; tapping it opens Apple Maps to that location.</p>
+
+    <hr class="section-rule">
+
+    <h3>👥 Adding People &amp; Contact Groups</h3>
+    <p>Three ways to add people:</p>
+    <ul>
+      <li><strong>Manual</strong> — type a name (and optional phone number) then tap +.</li>
+      <li><strong>Contacts</strong> (blue button) — pick one or more people from your address book.</li>
+      <li><strong>Add Group</strong> (indigo button) — import all members of a saved Contact Group in one tap. Anyone already on the bill by name is skipped automatically.</li>
+    </ul>
+    <p style="margin-top:10px;">When the bill has people on it, a teal <strong>Save as Group</strong> button appears. Tap it to name and save the current list as a new Contact Group for future reuse. Manage groups on the <strong>Groups</strong> tab.</p>
+
+    <hr class="section-rule">
+
+    <h3>🎂 Birthday Person</h3>
+    <p>Tap the <strong>Birthday</strong> pill on any person's row to flag them. You can flag multiple people.</p>
+    <ul>
+      <li>Their share becomes <strong>$0</strong> — their items' costs are redistributed to the non-birthday consumers.</li>
+      <li>If an item was ordered only by birthday people, its cost is split among all non-birthday people.</li>
+      <li>The 🎂 emoji and pink highlight appear on their row; payment buttons are hidden since they owe nothing.</li>
+      <li>Birthday indicators appear in the Share Bill preview, on both pages of the exported PDF, and in the Saved Bills list.</li>
+      <li>Tap <strong>Remove Birthday</strong> to unmark them.</li>
+    </ul>
+
+    <hr class="section-rule">
+
+    <h3>📡 Live Sync (Nearby Devices)</h3>
+    <p>Everyone at the table can edit the same bill simultaneously — no internet required.</p>
+    <ul>
+      <li>Tap the <strong>antenna icon</strong> in the Bill tab toolbar to start syncing. It turns green and pulses while searching for nearby devices.</li>
+      <li>Nearby iPhones running BI Splitter with sync active will be discovered automatically over WiFi or Bluetooth.</li>
+      <li>When a device is found, the other phone receives an invitation: <em>"[Device] wants to join your live bill session."</em> Tap <strong>Accept</strong> to connect.</li>
+      <li>Any edit (adding people, items, birthday flags, tip changes) is broadcast to all connected phones within 300 ms.</li>
+      <li>A green banner shows who is connected. Tap ✕ in the banner or the antenna icon again to stop syncing.</li>
+    </ul>
+
+    <hr class="section-rule">
+
+    <h3>📷 Receipt Scanning &amp; Photo Attachment</h3>
+    <ul>
+      <li><strong>Scan Receipt</strong> — uses the camera with on-device OCR to detect item names and prices automatically. Review and correct any misread items before adding them to the bill.</li>
+      <li><strong>Attach Photo</strong> — tap to attach an image of the receipt. Choose <strong>Take Photo</strong> (camera) or <strong>Choose from Gallery</strong> (photo library). The attached photo appears on page 2 of the exported PDF.</li>
+    </ul>
+
+    <hr class="section-rule">
+
+    <h3>💳 Payments</h3>
+    <ul>
+      <li><strong>Apple Pay</strong> — tap the Pay button on a person's row to request their share via contactless Apple Pay.</li>
+      <li><strong>Request (Zelle/iMessage)</strong> — tap Request to open a deep-link to Zelle or send an iMessage with the amount pre-filled.</li>
+      <li>Birthday-flagged people show $0 with no payment buttons — they owe nothing.</li>
+    </ul>
+
+    <hr class="section-rule">
+
+    <h3>📂 Saved Bills &amp; History</h3>
+    <ul>
+      <li>Every bill's <strong>total amount</strong> is shown next to the restaurant name in the list.</li>
+      <li>Use the <strong>search bar</strong> to filter by a person's name. Matching bills show that person's individual share for each bill.</li>
+      <li>Bills with birthday people show a pink 🎂 line with the birthday person's name.</li>
+      <li>Tap a bill to load it into the Bill tab. Swipe left to share via deep-link. Swipe right to delete.</li>
+    </ul>
+
+    <hr class="section-rule">
+
+    <h3>📊 Analytics</h3>
+    <ul>
+      <li><strong>Over Time</strong> — line chart of total bill amounts filtered by 1 month, 3 months, 6 months, or all time.</li>
+      <li><strong>Top Spenders</strong> — ranked list and bar chart showing total spend, <strong>number of bills</strong> appeared in, and <strong>average spend per bill</strong> for each person. Birthday shares ($0) are correctly excluded so rankings aren't skewed.</li>
     </ul>
   </div>
 
@@ -127,37 +298,67 @@
     <p class="faq-a">By default, tip is calculated on the subtotal before tax (Pre-Tax Tip). Toggle the "Pre Tax Tip" switch in the Summary section to change this behaviour.</p>
 
     <p class="faq-q">How is each person's share calculated?</p>
-    <p class="faq-a">Each person pays for the items assigned to them. If an item is shared by multiple people, its cost is split equally. Tax and tip are distributed proportionally based on each person's item total.</p>
+    <p class="faq-a">Each person pays for the items assigned to them. If an item is shared by multiple people, its cost is split equally. Tax and tip are distributed proportionally based on each person's item total. Birthday-flagged people always pay $0 — their portion is absorbed by the remaining people.</p>
+
+    <p class="faq-q">How does Birthday Mode split the costs?</p>
+    <p class="faq-a">Items the birthday person consumed are redistributed to the other consumers of those same items. If an item was only ordered by birthday people, its full cost is split equally among all non-birthday people. The grand total of the bill is unchanged — it's just redistributed.</p>
+
+    <p class="faq-q">How does Live Sync work? Does it need the internet?</p>
+    <p class="faq-a">No internet required. Live Sync uses Apple's Multipeer Connectivity framework to connect nearby iPhones directly over WiFi or Bluetooth. All data stays on-device and on your local network — nothing is sent to any server. Both phones must have sync active (antenna icon enabled) and be within WiFi/Bluetooth range (typically the same room).</p>
+
+    <p class="faq-q">What happens if two people edit the bill at the same time during sync?</p>
+    <p class="faq-a">Changes are broadcast with a short 300 ms debounce. The most recent change wins — if two people edit simultaneously, the last change received by each phone becomes the shared state. For best results, take turns on large edits like adding many items at once.</p>
+
+    <p class="faq-q">How do I search for a restaurant's address?</p>
+    <p class="faq-a">In the Restaurant section of the Bill tab, tap the 🔍 magnifying glass icon next to the address field. A search sheet opens pre-filled with the restaurant name. Tap any result to fill the address automatically. Once saved, tap the 🗺 map icon to open it in Apple Maps.</p>
+
+    <p class="faq-q">How do I save the current people on a bill as a group?</p>
+    <p class="faq-a">Once you've added at least one person to the bill, a teal <strong>Save as Group</strong> button appears in the People section. Tap it, give the group a name, and tap Save. The group appears in the Groups tab and is available for future bills via the indigo <strong>Add Group</strong> button.</p>
+
+    <p class="faq-q">Will adding a group duplicate people already on the bill?</p>
+    <p class="faq-a">No. When you add a Contact Group, anyone whose name already appears on the bill is automatically skipped. Only new names are added.</p>
 
     <p class="faq-q">Can I share a bill with someone who doesn't have the app?</p>
-    <p class="faq-a">The Bill Share feature (person.2.wave.2 icon) creates a deep link that requires the recipient to also have BI Splitter installed. To share with anyone, use the PDF export button instead.</p>
+    <p class="faq-a">The <strong>Share Bill</strong> deep-link feature requires the recipient to also have BI Splitter installed. To share with anyone, use <strong>Export PDF</strong> instead — it generates a formatted two-page receipt that can be sent via Messages, Mail, AirDrop, or any other app.</p>
+
+    <p class="faq-q">What's on each page of the exported PDF?</p>
+    <p class="faq-a"><strong>Page 1</strong> shows the restaurant name, date, participant list (with 🎂 for birthday people), itemised bill, and totals. <strong>Page 2</strong> shows each person's individual share breakdown, Zelle payment info (if entered), and the attached receipt photo (if any).</p>
 
     <p class="faq-q">Why does receipt scanning sometimes miss items?</p>
-    <p class="faq-a">Receipt OCR works best on flat, well-lit receipts. Try scanning again with better lighting, or add items manually using the Items section. You can also attach a photo of the receipt to the bill for reference.</p>
+    <p class="faq-a">Receipt OCR works best on flat, well-lit receipts with clear printed text. Try scanning again with better lighting, or add items manually. You can also use <strong>Attach Photo</strong> to store a photo of the receipt on the bill without OCR parsing.</p>
 
     <p class="faq-q">Where is my bill data stored?</p>
-    <p class="faq-a">All bill data is stored locally on your device using Core Data. It is never uploaded to any server (except receipt text lines when using the optional AI parsing feature — see our Privacy Policy).</p>
+    <p class="faq-a">All bill data is stored locally on your device using Core Data. It is never uploaded to any server (except receipt text lines when using the optional AI parsing feature — see our Privacy Policy). Live Sync data travels only over your local network between connected devices and is never stored externally.</p>
 
     <p class="faq-q">How do I delete a saved bill?</p>
-    <p class="faq-a">Go to the Saved Bills tab and swipe left on any bill to reveal the Delete option.</p>
+    <p class="faq-a">Go to the Saved Bills tab and swipe left on any bill to reveal the Delete option. If the list is filtered by name, deletion still correctly removes the bill from your full history.</p>
 
     <p class="faq-q">How do I load a saved bill to edit it?</p>
     <p class="faq-a">Tap any saved bill in the Saved Bills tab. It will load into the Bill tab so you can make changes and re-save it.</p>
 
+    <p class="faq-q">How do I filter saved bills by person?</p>
+    <p class="faq-a">Pull down on the Saved Bills list to reveal the search bar, then type a person's name. The list narrows to bills that include that person, and each row shows their individual share for that bill.</p>
+
+    <p class="faq-q">How do I see who spent the most across all bills?</p>
+    <p class="faq-a">Go to the <strong>Analytics</strong> tab and switch to the <strong>Top Spenders</strong> view. Each entry shows the person's total spend across all saved bills, how many bills they appeared in, and their average spend per bill.</p>
+
     <p class="faq-q">How do I request payment from someone?</p>
-    <p class="faq-a">In the Summary section or the person row, tap the green <strong>Request</strong> button. BI Splitter will open Venmo (if installed) pre-filled with the amount, or send a pre-written iMessage to the person's phone number.</p>
+    <p class="faq-a">In the person's row, tap the green <strong>Request</strong> button. BI Splitter will open Venmo (if installed) pre-filled with the amount, or send a pre-written iMessage to the person's phone number.</p>
 
     <p class="faq-q">What is the Zelle field for?</p>
-    <p class="faq-a">You can optionally enter a Zelle email or phone number. This information is printed on the exported PDF receipt so that people you share the PDF with know where to send their payment.</p>
+    <p class="faq-a">You can optionally enter a Zelle email or phone number in the People section. This information is printed on page 2 of the exported PDF so recipients know where to send payment.</p>
 
     <p class="faq-q">How do I export all my bills?</p>
-    <p class="faq-a">In the Saved Bills tab, tap <strong>Export Bills</strong> in the top-left corner to download a JSON file of all your saved bills.</p>
+    <p class="faq-a">In the Saved Bills tab, tap <strong>Export Bills</strong> in the top-left corner to download a JSON file of all your saved bills — useful for backup or transferring to a new device.</p>
 
     <p class="faq-q">How do I use Contact Groups?</p>
-    <p class="faq-a">Go to the Groups tab to create a reusable group of people (e.g., "Work Friends"). When adding people to a bill, tap <strong>Add Group</strong> to instantly load all members of a saved group.</p>
+    <p class="faq-a">Go to the <strong>Groups</strong> tab to create and manage reusable lists of people. Tap + to create a group, give it a name, and add members from your Contacts. When adding people to a bill, tap the indigo <strong>Add Group</strong> button to instantly load all members. You can also save a bill's current people as a new group using the teal <strong>Save as Group</strong> button in the Bill tab.</p>
 
     <p class="faq-q">The app is asking for Contacts permission — is that required?</p>
     <p class="faq-a">No. Contacts access is entirely optional. You can always add people manually by typing their names. If you denied access and want to enable it later, go to <strong>Settings › Privacy &amp; Security › Contacts</strong> and toggle BI Splitter on.</p>
+
+    <p class="faq-q">The app is asking for Local Network permission — what is that for?</p>
+    <p class="faq-a">This permission is required for the <strong>Live Sync</strong> feature, which connects nearby iPhones over your local network so everyone at the table can edit the same bill. If you don't use Live Sync, this permission has no effect on the app.</p>
   </div>
 
   <!-- Contact -->
