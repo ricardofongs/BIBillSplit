@@ -12,6 +12,7 @@ import Charts
 @preconcurrency import PassKit
 import ContactsUI
 import MapKit
+import MultipeerConnectivity
 
 // MARK: - Models
 struct Person: Identifiable, Hashable, Codable {
@@ -567,11 +568,120 @@ struct ContactPickerSheet: View {
     }
 }
 
+// MARK: - Bill Sync Session (Multipeer Connectivity)
+/// Thin networking helper — not an ObservableObject. All callbacks arrive on the main thread.
+final class BillSyncSession: NSObject {
+    private let serviceType = "bi-billsplit"
+    private let myPeerID: MCPeerID
+    private var mcSession: MCSession
+    private var advertiser: MCNearbyServiceAdvertiser
+    private var browser: MCNearbyServiceBrowser
+
+    var onBillReceived: ((Bill) -> Void)?
+    var onPeersChanged: (([String]) -> Void)?
+    var onInvitation: ((String, @escaping (Bool) -> Void) -> Void)?
+
+    override init() {
+        myPeerID = MCPeerID(displayName: UIDevice.current.name)
+        mcSession = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
+        advertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: nil, serviceType: serviceType)
+        browser = MCNearbyServiceBrowser(peer: myPeerID, serviceType: serviceType)
+        super.init()
+        mcSession.delegate = self
+        advertiser.delegate = self
+        browser.delegate = self
+    }
+
+    func start() {
+        advertiser.startAdvertisingPeer()
+        browser.startBrowsingForPeers()
+    }
+
+    func stop() {
+        advertiser.stopAdvertisingPeer()
+        browser.stopBrowsingForPeers()
+        mcSession.disconnect()
+        DispatchQueue.main.async { self.onPeersChanged?([]) }
+    }
+
+    func send(bill: Bill) {
+        guard !mcSession.connectedPeers.isEmpty,
+              let data = try? JSONEncoder().encode(bill) else { return }
+        try? mcSession.send(data, toPeers: mcSession.connectedPeers, with: .reliable)
+    }
+}
+
+extension BillSyncSession: MCSessionDelegate {
+    func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
+        let names = session.connectedPeers.map { $0.displayName }
+        DispatchQueue.main.async { self.onPeersChanged?(names) }
+    }
+
+    func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
+        guard let bill = try? JSONDecoder().decode(Bill.self, from: data) else { return }
+        DispatchQueue.main.async { self.onBillReceived?(bill) }
+    }
+
+    func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {}
+    func session(_ session: MCSession, didStartReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, with progress: Progress) {}
+    func session(_ session: MCSession, didFinishReceivingResourceWithName resourceName: String, fromPeer peerID: MCPeerID, at localURL: URL?, withError error: Error?) {}
+}
+
+extension BillSyncSession: MCNearbyServiceAdvertiserDelegate {
+    func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
+        let name = peerID.displayName
+        DispatchQueue.main.async {
+            self.onInvitation?(name) { [weak self] accepted in
+                invitationHandler(accepted, accepted ? self?.mcSession : nil)
+            }
+        }
+    }
+    func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: Error) {
+        print("Sync advertiser error: \(error.localizedDescription)")
+    }
+}
+
+extension BillSyncSession: MCNearbyServiceBrowserDelegate {
+    func browser(_ browser: MCNearbyServiceBrowser, foundPeer peerID: MCPeerID, withDiscoveryInfo info: [String: String]?) {
+        guard !mcSession.connectedPeers.contains(peerID) else { return }
+        browser.invitePeer(peerID, to: mcSession, withContext: nil, timeout: 10)
+    }
+    func browser(_ browser: MCNearbyServiceBrowser, lostPeer peerID: MCPeerID) {}
+    func browser(_ browser: MCNearbyServiceBrowser, didNotStartBrowsingForPeers error: Error) {
+        print("Sync browser error: \(error.localizedDescription)")
+    }
+}
+
 // MARK: - ViewModel
 @MainActor
 final class BillViewModel: ObservableObject {
-   // @Published var bill = Bill()
-    @Published var bill = Bill(people: [], items: [], taxPercent: 8, tipPercent: 18, restaurantName: "", date: Date(), receiptImageData: nil)
+    // bill uses willSet/didSet (instead of @Published) so we can hook sync.
+    var bill: Bill = Bill(people: [], items: [], taxPercent: 8, tipPercent: 18, restaurantName: "", date: Date(), receiptImageData: nil) {
+        willSet { objectWillChange.send() }
+        didSet {
+            guard !isReceivingSync, isSyncActive else { return }
+            syncDebounceTask?.cancel()
+            syncDebounceTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled, let self, !self.isReceivingSync else { return }
+                self.syncSession.send(bill: self.bill)
+            }
+        }
+    }
+
+    // MARK: Sync state
+    struct SyncInvitation: Identifiable {
+        let id = UUID()
+        let peerName: String
+        let respond: (Bool) -> Void
+    }
+    private let syncSession = BillSyncSession()
+    @Published var isSyncActive = false
+    @Published var syncPeerNames: [String] = []
+    @Published var pendingSyncInvitation: SyncInvitation? = nil
+    private var isReceivingSync = false
+    private var syncDebounceTask: Task<Void, Never>? = nil
+
     @Published var savedBills: [Bill] = []
     @Published var isPreTaxCalc: Bool = true
     @Published var restaurantName: String = ""
@@ -589,6 +699,29 @@ final class BillViewModel: ObservableObject {
         }
         container.viewContext.automaticallyMergesChangesFromParent = true
         loadBills()
+        syncSession.onBillReceived = { [weak self] received in
+            guard let self else { return }
+            self.isReceivingSync = true
+            self.bill = received
+            self.isReceivingSync = false
+        }
+        syncSession.onPeersChanged = { [weak self] names in
+            self?.syncPeerNames = names
+        }
+        syncSession.onInvitation = { [weak self] peerName, respond in
+            self?.pendingSyncInvitation = SyncInvitation(peerName: peerName, respond: respond)
+        }
+    }
+
+    func toggleSync() {
+        if isSyncActive {
+            syncSession.stop()
+            isSyncActive = false
+            syncPeerNames = []
+        } else {
+            syncSession.start()
+            isSyncActive = true
+        }
     }
 
 
@@ -1626,6 +1759,37 @@ struct CurrentBillView: View {
                         .foregroundStyle(.red)
                         .padding(.horizontal)
                 }
+
+                // Live sync status banner
+                if vm.isSyncActive {
+                    HStack(spacing: 8) {
+                        if vm.syncPeerNames.isEmpty {
+                            ProgressView().scaleEffect(0.75)
+                            Text("Looking for nearby devices…")
+                        } else {
+                            Image(systemName: "person.2.wave.2.fill")
+                                .foregroundStyle(.green)
+                            Text(vm.syncPeerNames.joined(separator: ", "))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Text("· \(vm.syncPeerNames.count) connected")
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button { vm.toggleSync() } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .font(.caption)
+                    .padding(10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green.opacity(0.12))
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+                    .padding(.top, 6)
+                }
+
                 Form {
                     Section("Restaurant") {
                         TextField("Enter restaurant name", text: $vm.bill.restaurantName)
@@ -1727,10 +1891,18 @@ struct CurrentBillView: View {
             }
             .navigationTitle("Bill Split")
             .toolbar {
-                // Leading: preview receipt + overflow menu for secondary actions
+                // Leading: preview receipt + sync toggle + overflow menu
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Button(action: { showingReceipt = true }) {
                         Image(systemName: "eye")
+                    }
+
+                    Button { vm.toggleSync() } label: {
+                        Image(systemName: vm.isSyncActive
+                              ? "antenna.radiowaves.left.and.right.circle.fill"
+                              : "antenna.radiowaves.left.and.right.circle")
+                            .foregroundStyle(vm.isSyncActive ? Color.green : Color.primary)
+                            .symbolEffect(.pulse, options: .repeating, isActive: vm.isSyncActive && vm.syncPeerNames.isEmpty)
                     }
 
                     Menu {
@@ -1853,6 +2025,23 @@ struct CurrentBillView: View {
             .sheet(isPresented: $showingRestaurantSearch) {
                 RestaurantSearchSheet(restaurantName: vm.bill.restaurantName) { address in
                     vm.bill.restaurantAddress = address
+                }
+            }
+            .alert("Live Sync Invitation", isPresented: Binding(
+                get: { vm.pendingSyncInvitation != nil },
+                set: { _ in }
+            )) {
+                Button("Accept") {
+                    vm.pendingSyncInvitation?.respond(true)
+                    vm.pendingSyncInvitation = nil
+                }
+                Button("Decline", role: .cancel) {
+                    vm.pendingSyncInvitation?.respond(false)
+                    vm.pendingSyncInvitation = nil
+                }
+            } message: {
+                if let inv = vm.pendingSyncInvitation {
+                    Text("\(inv.peerName) wants to join your live bill session.")
                 }
             }
 

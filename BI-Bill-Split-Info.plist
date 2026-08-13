@@ -28,5 +28,12 @@
 	</array>
 	<key>OPENAI_API_KEY</key>
 	<string>$(OPENAI_API_KEY)</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Bill Splitter uses your local network to sync the bill in real time with nearby devices running the same app.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_bi-billsplit._tcp</string>
+		<string>_bi-billsplit._udp</string>
+	</array>
 </dict>
 </plist>
