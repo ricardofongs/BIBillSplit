@@ -20,9 +20,12 @@ struct Person: Identifiable, Hashable, Codable {
     var name: String
     var phone: String?
     var isBirthday: Bool
+    /// When true this person only pays for what they personally consumed;
+    /// they are excluded from absorbing any birthday-person redistribution.
+    var isExcluded: Bool
 
-    init(id: UUID = UUID(), name: String, phone: String? = nil, isBirthday: Bool = false) {
-        self.id = id; self.name = name; self.phone = phone; self.isBirthday = isBirthday
+    init(id: UUID = UUID(), name: String, phone: String? = nil, isBirthday: Bool = false, isExcluded: Bool = false) {
+        self.id = id; self.name = name; self.phone = phone; self.isBirthday = isBirthday; self.isExcluded = isExcluded
     }
 
     init(from decoder: Decoder) throws {
@@ -31,9 +34,10 @@ struct Person: Identifiable, Hashable, Codable {
         name       = (try? c.decode(String.self, forKey: .name)) ?? ""
         phone      = try? c.decodeIfPresent(String.self, forKey: .phone)
         isBirthday = (try? c.decode(Bool.self,   forKey: .isBirthday)) ?? false
+        isExcluded = (try? c.decode(Bool.self,   forKey: .isExcluded)) ?? false
     }
 
-    enum CodingKeys: String, CodingKey { case id, name, phone, isBirthday }
+    enum CodingKeys: String, CodingKey { case id, name, phone, isBirthday, isExcluded }
 }
 
 struct Item: Identifiable, Hashable, Codable {
@@ -731,33 +735,80 @@ final class BillViewModel: ObservableObject {
     var tipAmount: Double { (subtotal  + (isPreTaxCalc ? 0 : taxAmount)) * bill.tipPercent / 100.0 }
     var grandTotal: Double { subtotal + taxAmount + tipAmount }
 
-    /// Per-person share for items (before tax/tip), accounting for shared items and birthday people.
-    /// Birthday people pay $0; their item costs are absorbed by the non-birthday consumers.
+    /// Per-person share for items (before tax/tip).
+    ///
+    /// Rules:
+    /// - Birthday people always pay $0; their portions are redistributed.
+    /// - Excluded people pay only their own fair base share (item.price / total consumers),
+    ///   never absorbing any birthday-person redistribution.
+    /// - Everyone else absorbs the birthday portions left uncovered by excluded people.
     func preTaxShare(for personID: UUID) -> Double {
         let birthdayIDs = Set(bill.people.filter { $0.isBirthday }.map { $0.id })
-        let nonBirthdayIDs = Set(bill.people.filter { !$0.isBirthday }.map { $0.id })
+        // isExcluded is irrelevant when birthday is also set — birthday takes precedence
+        let excludedIDs = Set(bill.people.filter { $0.isExcluded && !$0.isBirthday }.map { $0.id })
 
         if birthdayIDs.contains(personID) { return 0 }
 
         return bill.items.reduce(0.0) { partial, item in
             guard !item.consumers.isEmpty else { return partial }
-            let effectiveConsumers = birthdayIDs.isEmpty
-                ? item.consumers
-                : item.consumers.subtracting(birthdayIDs)
-            if effectiveConsumers.isEmpty {
-                // All consumers are birthday people — split cost among every non-birthday person
-                guard !nonBirthdayIDs.isEmpty, nonBirthdayIDs.contains(personID) else { return partial }
-                return partial + item.price / Double(nonBirthdayIDs.count)
-            } else {
-                guard effectiveConsumers.contains(personID) else { return partial }
-                return partial + item.price / Double(effectiveConsumers.count)
+
+            let fairShare = item.price / Double(item.consumers.count)
+
+            if birthdayIDs.isEmpty {
+                // No birthday people — normal split, excluded flag has no effect
+                guard item.consumers.contains(personID) else { return partial }
+                return partial + fairShare
             }
+
+            let nonBirthdayConsumers = item.consumers.subtracting(birthdayIDs)
+
+            if nonBirthdayConsumers.isEmpty {
+                // All consumers of this item are birthday people — redistribute to bill-level absorbers
+                let billAbsorbers = Set(bill.people.filter { !$0.isBirthday && !$0.isExcluded }.map { $0.id })
+                if billAbsorbers.isEmpty {
+                    // Everyone non-birthday is excluded — fall back to all non-birthday people
+                    let allNonBirthday = Set(bill.people.filter { !$0.isBirthday }.map { $0.id })
+                    guard allNonBirthday.contains(personID) else { return partial }
+                    return partial + item.price / Double(allNonBirthday.count)
+                }
+                guard billAbsorbers.contains(personID) else { return partial }
+                return partial + item.price / Double(billAbsorbers.count)
+            }
+
+            // At least one non-birthday consumer exists for this item
+            guard nonBirthdayConsumers.contains(personID) else { return partial }
+
+            if excludedIDs.contains(personID) {
+                // Excluded: only pay the base fair share regardless of birthday redistribution
+                return partial + fairShare
+            }
+
+            // Absorbing person: covers their own share plus a slice of the birthday redistribution
+            let excludedConsumersOfItem = nonBirthdayConsumers.intersection(excludedIDs)
+            let absorbingConsumersOfItem = nonBirthdayConsumers.subtracting(excludedIDs)
+
+            if absorbingConsumersOfItem.isEmpty {
+                // All non-birthday consumers of this item are excluded — split evenly among them
+                return partial + item.price / Double(nonBirthdayConsumers.count)
+            }
+
+            guard absorbingConsumersOfItem.contains(personID) else { return partial }
+
+            // Excluded people cover their own base shares; absorbers split the rest
+            let excludedCoverage = Double(excludedConsumersOfItem.count) * fairShare
+            let remaining = item.price - excludedCoverage
+            return partial + remaining / Double(absorbingConsumersOfItem.count)
         }
     }
 
     func toggleBirthday(for personID: UUID) {
         guard let idx = bill.people.firstIndex(where: { $0.id == personID }) else { return }
         bill.people[idx].isBirthday.toggle()
+    }
+
+    func toggleExcluded(for personID: UUID) {
+        guard let idx = bill.people.firstIndex(where: { $0.id == personID }) else { return }
+        bill.people[idx].isExcluded.toggle()
     }
 
     /// Distribute tax and tip proportionally to each person's pre-tax share.
@@ -2188,6 +2239,16 @@ struct BillShareSheet: View {
                         }
                         .font(.caption)
                     }
+                    let excludedPeople = bill.people.filter { $0.isExcluded && !$0.isBirthday }
+                    if !excludedPeople.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.crop.circle.badge.minus")
+                            Text(excludedPeople.map { $0.name }.joined(separator: ", ") + " · only pay own items")
+                                .foregroundStyle(.orange)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    }
                 }
                 .padding()
                 .background(Color(.secondarySystemGroupedBackground))
@@ -2771,11 +2832,17 @@ struct PersonRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         if person.isBirthday {
-                            Text("🎂")
+                            Text("🎂").font(.body)
+                        } else if person.isExcluded {
+                            Image(systemName: "person.crop.circle.badge.minus")
                                 .font(.body)
+                                .foregroundStyle(.orange)
                         }
                         Text(person.name).fontWeight(.semibold)
-                            .foregroundStyle(person.isBirthday ? Color.pink : Color.primary)
+                            .foregroundStyle(
+                                person.isBirthday ? Color.pink :
+                                person.isExcluded  ? Color.orange : Color.primary
+                            )
                     }
                     if let phone = person.phone, !phone.isEmpty {
                         Text(phone)
@@ -2786,10 +2853,14 @@ struct PersonRow: View {
                         Text("Covered by the group 🎉")
                             .font(.caption)
                             .foregroundStyle(.pink)
+                    } else if person.isExcluded {
+                        Text("Only pays own items")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
                 }
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
+                VStack(alignment: .trailing, spacing: 4) {
                     if person.isBirthday {
                         Text("$0.00")
                             .fontWeight(.semibold)
@@ -2798,20 +2869,39 @@ struct PersonRow: View {
                         Text(share.total, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
                             .fontWeight(.semibold)
                     }
-                    Button {
-                        vm.toggleBirthday(for: person.id)
-                    } label: {
-                        Label(person.isBirthday ? "Remove Birthday" : "Birthday",
-                              systemImage: person.isBirthday ? "birthday.cake.fill" : "birthday.cake")
-                            .font(.caption2)
-                            .labelStyle(.titleAndIcon)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(person.isBirthday ? Color.pink.opacity(0.15) : Color.secondary.opacity(0.12))
-                            .foregroundStyle(person.isBirthday ? Color.pink : Color.secondary)
-                            .clipShape(Capsule())
+                    HStack(spacing: 6) {
+                        Button {
+                            vm.toggleBirthday(for: person.id)
+                        } label: {
+                            Label(person.isBirthday ? "Remove Birthday" : "Birthday",
+                                  systemImage: person.isBirthday ? "birthday.cake.fill" : "birthday.cake")
+                                .font(.caption2)
+                                .labelStyle(.titleAndIcon)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(person.isBirthday ? Color.pink.opacity(0.15) : Color.secondary.opacity(0.12))
+                                .foregroundStyle(person.isBirthday ? Color.pink : Color.secondary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(person.isExcluded)
+
+                        Button {
+                            vm.toggleExcluded(for: person.id)
+                        } label: {
+                            Label(person.isExcluded ? "Included" : "Exclude",
+                                  systemImage: person.isExcluded ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.minus")
+                                .font(.caption2)
+                                .labelStyle(.titleAndIcon)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(person.isExcluded ? Color.orange.opacity(0.15) : Color.secondary.opacity(0.12))
+                                .foregroundStyle(person.isExcluded ? Color.orange : Color.secondary)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(person.isBirthday)
                     }
-                    .buttonStyle(.plain)
                 }
             }
 
@@ -3410,7 +3500,11 @@ struct ReceiptView: View {
 //                ForEach(vm.bill.people) { Text("• \($0.name)").font(.caption) }
 //            }
             //let names = [String](vm.bill.people.map(\.init(\.name)))
-            let names: [String] = vm.bill.people.map { $0.isBirthday ? "🎂 \($0.name)" : $0.name }
+            let names: [String] = vm.bill.people.map {
+                if $0.isBirthday { return "🎂 \($0.name)" }
+                if $0.isExcluded { return "⊖ \($0.name)" }
+                return $0.name
+            }
             var chunkedNames: [[String]] {
                     stride(from: 0, to: names.count, by: 2).map {
                         Array(names[$0..<min($0 + 2, names.count)])
@@ -3435,6 +3529,12 @@ struct ReceiptView: View {
                     .font(.caption)
                     .foregroundStyle(.pink)
             }
+            let excludedNames = vm.bill.people.filter { $0.isExcluded && !$0.isBirthday }.map { $0.name }
+            if !excludedNames.isEmpty {
+                Text("⊖ Excluded from birthday share: \(excludedNames.joined(separator: ", ")) — only pay own items")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
             Divider()
             Text("Items").fontWeight(.semibold)
             VStack(alignment: .leading, spacing: 2) {
@@ -3443,7 +3543,11 @@ struct ReceiptView: View {
                         VStack(alignment: .leading) {
                             Text(item.name).font(.caption)
                             if !item.consumers.isEmpty {
-                                Text("Shared by: " + vm.bill.people.filter { item.consumers.contains($0.id) }.map { $0.isBirthday ? "🎂 \($0.name)" : $0.name }.joined(separator: ", "))
+                                Text("Shared by: " + vm.bill.people.filter { item.consumers.contains($0.id) }.map {
+                                    if $0.isBirthday { return "🎂 \($0.name)" }
+                                    if $0.isExcluded { return "⊖ \($0.name)" }
+                                    return $0.name
+                                }.joined(separator: ", "))
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
@@ -3486,16 +3590,30 @@ struct ReceiptView2: View {
                     let share = vm.totalForPerson(person.id)
                     HStack {
                         HStack(spacing: 4) {
-                            if person.isBirthday { Text("🎂") }
+                            if person.isBirthday {
+                                Text("🎂")
+                            } else if person.isExcluded {
+                                Text("⊖").foregroundStyle(.orange)
+                            }
                             Text(person.name)
-                                .foregroundStyle(person.isBirthday ? .pink : .primary)
+                                .foregroundStyle(
+                                    person.isBirthday ? .pink :
+                                    person.isExcluded  ? Color.orange : .primary
+                                )
                         }
                         Spacer()
                         if person.isBirthday {
                             Text("$0.00 · Covered by group 🎉")
                                 .foregroundStyle(.pink)
                         } else {
-                            Text(share.total, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                            VStack(alignment: .trailing, spacing: 1) {
+                                Text(share.total, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                                if person.isExcluded {
+                                    Text("Own items only")
+                                        .font(.caption2)
+                                        .foregroundStyle(.orange)
+                                }
+                            }
                         }
                     }
                     if !person.isBirthday {
