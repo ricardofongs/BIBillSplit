@@ -1732,8 +1732,7 @@ struct CurrentBillView: View {
     @State private var isPeopleExpanded: Bool = true
     /// Owned here so the sheet sits outside the Form and avoids Group/sheet conflicts.
     @State private var itemToEdit: Item? = nil
-    @State private var showingShareSheet = false
-    @State private var billShareURL: URL? = nil
+    @State private var billShareItem: IdentifiableURL? = nil
     @State private var showingRestaurantSearch = false
 
     var body: some View {
@@ -1941,8 +1940,7 @@ struct CurrentBillView: View {
 
                     Button {
                         if let url = vm.shareBillURL() {
-                            billShareURL = url
-                            showingShareSheet = true
+                            billShareItem = IdentifiableURL(url: url)
                         }
                     } label: {
                         Label("Share Bill", systemImage: "person.2.wave.2")
@@ -2017,10 +2015,8 @@ struct CurrentBillView: View {
                     vm.updateItem(updated)
                 }
             }
-            .sheet(isPresented: $showingShareSheet) {
-                if let billShareURL {
-                    BillShareSheet(bill: vm.bill, shareURL: billShareURL)
-                }
+            .sheet(item: $billShareItem) { item in
+                BillShareSheet(bill: vm.bill, shareURL: item.url)
             }
             .sheet(isPresented: $showingRestaurantSearch) {
                 RestaurantSearchSheet(restaurantName: vm.bill.restaurantName) { address in
@@ -3724,6 +3720,12 @@ struct ShareSheet: UIViewControllerRepresentable {
         UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
     }
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Identifiable URL wrapper (for sheet(item:))
+struct IdentifiableURL: Identifiable {
+    let id = UUID()
+    let url: URL
 }
 
 // MARK: - ImageRenderer -> PDF helper
