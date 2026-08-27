@@ -160,13 +160,13 @@
   <!-- About -->
   <div class="card">
     <h2>About BI Splitter</h2>
-    <p>BI Splitter is an iOS app that makes splitting restaurant bills easy. Add people, scan receipts, assign items, handle birthdays, sync in real time across phones at the table, calculate tax and tip, export PDFs, and request payment — all from your iPhone.</p>
+    <p>BI Splitter is an iOS app that makes splitting restaurant bills effortless. Add people, scan receipts, browse the restaurant's menu, assign items, handle birthdays, sync in real time across phones at the table, calculate tax and tip, export professional PDFs, and request payment — all from your iPhone.</p>
 
     <div class="feature-grid" style="margin-top:20px;">
       <div class="feature-item">
         <div class="icon">🍴</div>
         <strong>Restaurant Info</strong>
-        <span>Name, address with Maps search, and date</span>
+        <span>Name auto-filled from Maps, address search, and date</span>
       </div>
       <div class="feature-item">
         <div class="icon">👥</div>
@@ -179,6 +179,16 @@
         <span>Flag someone's birthday — the group covers their share</span>
       </div>
       <div class="feature-item">
+        <div class="icon">⊖</div>
+        <strong>Exclude from Birthday</strong>
+        <span>Let some people opt out of covering the birthday share</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">🤖</div>
+        <strong>Browse Menu</strong>
+        <span>AI-fetched menu items with prices, ready to add instantly</span>
+      </div>
+      <div class="feature-item">
         <div class="icon">📡</div>
         <strong>Live Sync</strong>
         <span>Real-time bill sync across nearby iPhones</span>
@@ -187,6 +197,16 @@
         <div class="icon">📷</div>
         <strong>Receipt Scanning</strong>
         <span>Camera OCR parsing + photo attachment</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">📄</div>
+        <strong>Professional PDF</strong>
+        <span>Branded two-page receipt with full per-person breakdown</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">⚙️</div>
+        <strong>Default Tax &amp; Tip</strong>
+        <span>Set your go-to tax and tip percentages in Settings</span>
       </div>
       <div class="feature-item">
         <div class="icon">📊</div>
@@ -200,15 +220,18 @@
   <div class="card">
     <h2>Getting Started</h2>
     <ul>
-      <li><strong>Restaurant</strong> — Enter a name (required to save), an optional address, and the date. Tap 🔍 next to the address to search for the restaurant in Maps; once saved the icon switches to 🗺 to open it in Apple Maps.</li>
+      <li><strong>Restaurant</strong> — Enter a name (required to save) or tap 🔍 to search Apple Maps. Selecting a result auto-fills both the name and address for you.</li>
       <li><strong>Add people</strong> — Type a name in the People section and tap +, import from Contacts, or load a saved Contact Group. Tap <strong>Save as Group</strong> (teal button) to save the current list for future bills.</li>
-      <li><strong>Birthday?</strong> — Tap the <strong>Birthday</strong> capsule on a person's row. That person's share becomes $0 and is absorbed by everyone else automatically.</li>
-      <li><strong>Add items</strong> — Enter an item name and price, then tap the people who had it. Items shared by multiple people are split equally.</li>
+      <li><strong>Birthday?</strong> — Tap the <strong>Birthday</strong> capsule on a person's row. Their share becomes $0 and is absorbed by the rest of the group automatically.</li>
+      <li><strong>Exclude from birthday share</strong> — Tap the <strong>Exclude</strong> capsule on a person's row to mark them with ⊖. Excluded people only pay their own consumed items and are not asked to cover the birthday person's share.</li>
+      <li><strong>Add items</strong> — Enter an item name and price, then tap the people who had it. The consumer grid shows all names without scrolling — just tap to toggle checkmarks. Items shared by multiple people are split equally.</li>
+      <li><strong>Browse Menu</strong> — Once a restaurant name is set, tap <strong>Browse Menu</strong> in the Items section header. BI Splitter fetches the restaurant's menu using AI, showing items with descriptions, prices, dietary tags, and Popular badges. Tap an item to select it, then tap <strong>Add Selected</strong> to add them all at once.</li>
       <li><strong>Scan a receipt</strong> — Tap ··· → <strong>Scan Receipt</strong> to use the camera with on-device OCR, or <strong>Attach Photo</strong> to pick from your camera or gallery.</li>
       <li><strong>Live Sync</strong> — Tap the 📡 antenna icon in the toolbar to let everyone at the table edit the same bill in real time over local WiFi/Bluetooth.</li>
       <li><strong>Review the summary</strong> — Scroll down to see each person's itemised share, including tax and tip.</li>
-      <li><strong>Export or share</strong> — Use the PDF export button to save a receipt, or <strong>Share Bill</strong> to send the full bill to another device.</li>
+      <li><strong>Export or share</strong> — Use the PDF export button to save a professional two-page receipt, or <strong>Share Bill</strong> to send the full bill to another device.</li>
       <li><strong>Save the bill</strong> — Tap the save icon (↓) in the top right. You'll need to enter a restaurant name first.</li>
+      <li><strong>Default tax &amp; tip</strong> — Go to the <strong>Settings</strong> tab to set your preferred default tax and tip percentages. Every new bill starts with those values pre-filled.</li>
     </ul>
   </div>
 
@@ -217,7 +240,7 @@
     <h2>Features in Detail</h2>
 
     <h3>🍴 Restaurant Address &amp; Map</h3>
-    <p>The address field is optional. Tap the <strong>magnifying glass</strong> icon to open a search sheet pre-seeded with the restaurant name — results come from Apple Maps. Tap a result to fill the address automatically. Once an address is saved, the icon changes to a <strong>map pin</strong>; tapping it opens Apple Maps to that location.</p>
+    <p>The address field is optional. Tap the <strong>magnifying glass</strong> icon to open a search sheet pre-seeded with the restaurant name — results come from Apple Maps. Selecting a result <strong>auto-fills both the restaurant name and address</strong> directly from the map, so the names always match. Once an address is saved, the icon changes to a <strong>map pin</strong>; tapping it opens Apple Maps to that location.</p>
 
     <hr class="section-rule">
 
@@ -236,10 +259,55 @@
     <p>Tap the <strong>Birthday</strong> pill on any person's row to flag them. You can flag multiple people.</p>
     <ul>
       <li>Their share becomes <strong>$0</strong> — their items' costs are redistributed to the non-birthday consumers.</li>
-      <li>If an item was ordered only by birthday people, its cost is split among all non-birthday people.</li>
+      <li>If an item was ordered only by birthday people, its cost is split among all non-birthday, non-excluded people.</li>
       <li>The 🎂 emoji and pink highlight appear on their row; payment buttons are hidden since they owe nothing.</li>
       <li>Birthday indicators appear in the Share Bill preview, on both pages of the exported PDF, and in the Saved Bills list.</li>
       <li>Tap <strong>Remove Birthday</strong> to unmark them.</li>
+    </ul>
+
+    <hr class="section-rule">
+
+    <h3>⊖ Exclude from Birthday Share <span class="badge new">New</span></h3>
+    <p>Sometimes one or more people at the table don't want to chip in for the birthday person's share — for example a plus-one or someone who arrived late. Tap the <strong>Exclude</strong> capsule on their row to mark them with ⊖.</p>
+    <ul>
+      <li>Excluded people pay only the items they personally consumed — their fair base share is never redistributed.</li>
+      <li>The birthday person's costs are absorbed only by the remaining (non-excluded) people.</li>
+      <li>You can combine Birthday and Exclude freely: birthday people still pay $0; excluded people pay only their own items; everyone else covers the birthday share.</li>
+      <li>The ⊖ badge and an "own items only" note appear on their row and on both pages of the exported PDF so the split is transparent to everyone.</li>
+      <li>Tap <strong>Remove Exclude</strong> to undo at any time.</li>
+    </ul>
+
+    <hr class="section-rule">
+
+    <h3>🤖 Browse Menu <span class="badge new">New</span></h3>
+    <p>Once a restaurant name is set, tap the <strong>Browse Menu</strong> button in the Items section header. BI Splitter uses AI to look up the restaurant's menu and returns a rich item list with:</p>
+    <ul>
+      <li><strong>Name &amp; price</strong> — ready to add directly to the bill.</li>
+      <li><strong>Description</strong> — a short summary of each dish.</li>
+      <li><strong>Category chips</strong> — filter by Appetizers, Mains, Desserts, Drinks, etc.</li>
+      <li><strong>⭐ Popular badge</strong> — highlights the restaurant's best-known dishes.</li>
+      <li><strong>Dietary tags</strong> — 🌱 Vegetarian, 🌿 Vegan, GF Gluten-Free, 🌶 Spicy.</li>
+      <li><strong>Search</strong> — type to filter by item name or description.</li>
+    </ul>
+    <p style="margin-top:8px;">Tap items to select them (checkmark appears), then tap <strong>Add Selected</strong> to add them all to the bill at once. If the restaurant address is set, BI Splitter uses it alongside the name to fetch the correct location's menu. Menu results are <strong>cached for the session</strong> — switching to a different bill or changing the restaurant name fetches fresh results, but browsing the same restaurant a second time is instant.</p>
+
+    <hr class="section-rule">
+
+    <h3>🧾 Assigning Items to People</h3>
+    <p>In each item row, all people on the bill are displayed as a <strong>wrapping grid of toggle buttons</strong> — no horizontal scrolling needed. Tap a person's chip to add or remove them from an item's consumers. A checkmark indicates they're assigned. The cost is split equally among all assigned consumers. If no one is assigned, the item is split among all non-birthday people.</p>
+
+    <hr class="section-rule">
+
+    <h3>⚙️ Default Tax &amp; Tip <span class="badge new">New</span></h3>
+    <p>Go to the <strong>Settings</strong> tab and find the <strong>Bill Defaults</strong> section. Use the steppers to set your preferred default tax percentage (0–25%, in 0.5% steps) and default tip percentage (0–40%, in 1% steps). Every new bill you create will start with these values pre-filled, saving you from adjusting them on every bill. You can still change the tax and tip on any individual bill at any time.</p>
+
+    <hr class="section-rule">
+
+    <h3>📄 Professional PDF Export <span class="badge new">Updated</span></h3>
+    <p>Tap the PDF export button to generate a two-page professional receipt:</p>
+    <ul>
+      <li><strong>Page 1</strong> — A branded header with the restaurant name, address, and date. A participant list with 🎂 (birthday) and ⊖ (excluded) indicators. A three-column items table (Item | Shared By | Price) with alternating row stripes. A totals block showing subtotal, tax, tip, and a highlighted Grand Total bar.</li>
+      <li><strong>Page 2</strong> — Individual per-person breakdown cards showing each person's items, tax, and tip share. Birthday people show "Covered by group 🎉" in pink. Excluded people show "own items only" in orange. Zelle payment information (if entered). The attached receipt photo (if any).</li>
     </ul>
 
     <hr class="section-rule">
@@ -259,7 +327,7 @@
     <h3>📷 Receipt Scanning &amp; Photo Attachment</h3>
     <ul>
       <li><strong>Scan Receipt</strong> — uses the camera with on-device OCR to detect item names and prices automatically. Review and correct any misread items before adding them to the bill.</li>
-      <li><strong>Attach Photo</strong> — tap to attach an image of the receipt. Choose <strong>Take Photo</strong> (camera) or <strong>Choose from Gallery</strong> (photo library). The attached photo appears on page 2 of the exported PDF.</li>
+      <li><strong>Attach Photo</strong> — attach an image of the receipt. Choose <strong>Take Photo</strong> (camera) or <strong>Choose from Gallery</strong> (photo library). The attached photo appears on page 2 of the exported PDF.</li>
     </ul>
 
     <hr class="section-rule">
@@ -298,10 +366,28 @@
     <p class="faq-a">By default, tip is calculated on the subtotal before tax (Pre-Tax Tip). Toggle the "Pre Tax Tip" switch in the Summary section to change this behaviour.</p>
 
     <p class="faq-q">How is each person's share calculated?</p>
-    <p class="faq-a">Each person pays for the items assigned to them. If an item is shared by multiple people, its cost is split equally. Tax and tip are distributed proportionally based on each person's item total. Birthday-flagged people always pay $0 — their portion is absorbed by the remaining people.</p>
+    <p class="faq-a">Each person pays for the items assigned to them. If an item is shared by multiple people, its cost is split equally. Tax and tip are distributed proportionally based on each person's item total. Birthday-flagged people always pay $0 — their portion is absorbed by the remaining non-excluded people.</p>
 
     <p class="faq-q">How does Birthday Mode split the costs?</p>
-    <p class="faq-a">Items the birthday person consumed are redistributed to the other consumers of those same items. If an item was only ordered by birthday people, its full cost is split equally among all non-birthday people. The grand total of the bill is unchanged — it's just redistributed.</p>
+    <p class="faq-a">Items the birthday person consumed are redistributed to the other consumers of those same items. If an item was only ordered by birthday people, its full cost is split equally among all non-birthday, non-excluded people. The grand total of the bill is unchanged — it's just redistributed.</p>
+
+    <p class="faq-q">What does "Exclude from Birthday Share" do exactly?</p>
+    <p class="faq-a">Marking someone with ⊖ means they only pay for the items they personally consumed — they are not asked to help cover the birthday person's share. For example, if someone joined late and only had dessert, they can be excluded so they pay just for dessert while the rest of the table covers the birthday share. Excluded people's own item costs are never redistributed to others.</p>
+
+    <p class="faq-q">Can I combine Birthday and Exclude on the same bill?</p>
+    <p class="faq-a">Yes. Birthday people pay $0 as usual. Excluded people pay only their own items. Everyone else (neither birthday nor excluded) shares the cost of the birthday person's items. All combinations are supported — including multiple birthday people and multiple excluded people on the same bill.</p>
+
+    <p class="faq-q">How does Browse Menu work?</p>
+    <p class="faq-a">Once a restaurant name is entered, tap <strong>Browse Menu</strong> in the Items section header. BI Splitter sends the restaurant name (and address if available) to an AI model which returns a list of likely menu items with prices, descriptions, and dietary information. Results are approximate — always verify prices against the actual menu. Browse Menu requires an internet connection.</p>
+
+    <p class="faq-q">Does Browse Menu call the internet every time I open it?</p>
+    <p class="faq-a">No. Menu results are cached for the current session. If you open Browse Menu again for the same restaurant, the previously fetched results are reused instantly — no extra API call is made. The cache is cleared when you start a new bill or change the restaurant name.</p>
+
+    <p class="faq-q">Browse Menu prices look wrong — what should I do?</p>
+    <p class="faq-a">AI-generated menu data is a best-effort estimate and may not match current prices exactly. Always double-check against the restaurant's actual menu or your receipt. You can edit any item's price directly in the bill after adding it.</p>
+
+    <p class="faq-q">How do I set a default tax and tip percentage?</p>
+    <p class="faq-a">Go to the <strong>Settings</strong> tab (gear icon) and find the <strong>Bill Defaults</strong> section. Use the steppers to set your preferred tax (0–25%, 0.5% steps) and tip (0–40%, 1% steps). New bills will open with those values pre-filled. You can still adjust tax and tip on any individual bill at any time without affecting the default.</p>
 
     <p class="faq-q">How does Live Sync work? Does it need the internet?</p>
     <p class="faq-a">No internet required. Live Sync uses Apple's Multipeer Connectivity framework to connect nearby iPhones directly over WiFi or Bluetooth. All data stays on-device and on your local network — nothing is sent to any server. Both phones must have sync active (antenna icon enabled) and be within WiFi/Bluetooth range (typically the same room).</p>
@@ -310,7 +396,7 @@
     <p class="faq-a">Changes are broadcast with a short 300 ms debounce. The most recent change wins — if two people edit simultaneously, the last change received by each phone becomes the shared state. For best results, take turns on large edits like adding many items at once.</p>
 
     <p class="faq-q">How do I search for a restaurant's address?</p>
-    <p class="faq-a">In the Restaurant section of the Bill tab, tap the 🔍 magnifying glass icon next to the address field. A search sheet opens pre-filled with the restaurant name. Tap any result to fill the address automatically. Once saved, tap the 🗺 map icon to open it in Apple Maps.</p>
+    <p class="faq-a">In the Restaurant section of the Bill tab, tap the 🔍 magnifying glass icon next to the address field. A search sheet opens pre-filled with the restaurant name. Tap any result to auto-fill the restaurant name and address from Apple Maps. Once saved, tap the 🗺 map icon to open it in Apple Maps.</p>
 
     <p class="faq-q">How do I save the current people on a bill as a group?</p>
     <p class="faq-a">Once you've added at least one person to the bill, a teal <strong>Save as Group</strong> button appears in the People section. Tap it, give the group a name, and tap Save. The group appears in the Groups tab and is available for future bills via the indigo <strong>Add Group</strong> button.</p>
@@ -322,13 +408,13 @@
     <p class="faq-a">The <strong>Share Bill</strong> deep-link feature requires the recipient to also have BI Splitter installed. To share with anyone, use <strong>Export PDF</strong> instead — it generates a formatted two-page receipt that can be sent via Messages, Mail, AirDrop, or any other app.</p>
 
     <p class="faq-q">What's on each page of the exported PDF?</p>
-    <p class="faq-a"><strong>Page 1</strong> shows the restaurant name, date, participant list (with 🎂 for birthday people), itemised bill, and totals. <strong>Page 2</strong> shows each person's individual share breakdown, Zelle payment info (if entered), and the attached receipt photo (if any).</p>
+    <p class="faq-a"><strong>Page 1</strong> shows the restaurant name and address, date, participant list (with 🎂 for birthday people and ⊖ for excluded people), a formatted items table, and a totals block with subtotal, tax, tip, and grand total. <strong>Page 2</strong> shows each person's individual share breakdown with items, tax, and tip columns, Zelle payment info (if entered), and the attached receipt photo (if any).</p>
 
     <p class="faq-q">Why does receipt scanning sometimes miss items?</p>
     <p class="faq-a">Receipt OCR works best on flat, well-lit receipts with clear printed text. Try scanning again with better lighting, or add items manually. You can also use <strong>Attach Photo</strong> to store a photo of the receipt on the bill without OCR parsing.</p>
 
     <p class="faq-q">Where is my bill data stored?</p>
-    <p class="faq-a">All bill data is stored locally on your device using Core Data. It is never uploaded to any server (except receipt text lines when using the optional AI parsing feature — see our Privacy Policy). Live Sync data travels only over your local network between connected devices and is never stored externally.</p>
+    <p class="faq-a">All bill data is stored locally on your device using Core Data. It is never uploaded to any server (except restaurant name and address when using the Browse Menu feature — see our Privacy Policy). Live Sync data travels only over your local network between connected devices and is never stored externally.</p>
 
     <p class="faq-q">How do I delete a saved bill?</p>
     <p class="faq-a">Go to the Saved Bills tab and swipe left on any bill to reveal the Delete option. If the list is filtered by name, deletion still correctly removes the bill from your full history.</p>
@@ -343,7 +429,7 @@
     <p class="faq-a">Go to the <strong>Analytics</strong> tab and switch to the <strong>Top Spenders</strong> view. Each entry shows the person's total spend across all saved bills, how many bills they appeared in, and their average spend per bill.</p>
 
     <p class="faq-q">How do I request payment from someone?</p>
-    <p class="faq-a">In the person's row, tap the green <strong>Request</strong> button. BI Splitter will open Venmo (if installed) pre-filled with the amount, or send a pre-written iMessage to the person's phone number.</p>
+    <p class="faq-a">In the person's row, tap the green <strong>Request</strong> button. BI Splitter will open Zelle (if installed) pre-filled with the amount, or send a pre-written iMessage to the person's phone number.</p>
 
     <p class="faq-q">What is the Zelle field for?</p>
     <p class="faq-a">You can optionally enter a Zelle email or phone number in the People section. This information is printed on page 2 of the exported PDF so recipients know where to send payment.</p>

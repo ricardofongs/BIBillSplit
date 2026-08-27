@@ -659,8 +659,16 @@ extension BillSyncSession: MCNearbyServiceBrowserDelegate {
 // MARK: - ViewModel
 @MainActor
 final class BillViewModel: ObservableObject {
+    // Reads the user's saved defaults (falling back to 8 % tax / 18 % tip if never set).
+    static func defaultBill() -> Bill {
+        let tax = UserDefaults.standard.object(forKey: "defaultTaxPercent") as? Double ?? 8.0
+        let tip = UserDefaults.standard.object(forKey: "defaultTipPercent") as? Double ?? 18.0
+        return Bill(people: [], items: [], taxPercent: tax, tipPercent: tip,
+                    restaurantName: "", date: Date(), receiptImageData: nil)
+    }
+
     // bill uses willSet/didSet (instead of @Published) so we can hook sync.
-    var bill: Bill = Bill(people: [], items: [], taxPercent: 8, tipPercent: 18, restaurantName: "", date: Date(), receiptImageData: nil) {
+    var bill: Bill = BillViewModel.defaultBill() {
         willSet { objectWillChange.send() }
         didSet {
             guard !isReceivingSync, isSyncActive else { return }
@@ -681,6 +689,8 @@ final class BillViewModel: ObservableObject {
     }
     private let syncSession = BillSyncSession()
     @Published var isSyncActive = false
+    // Cached menu items keyed by "restaurantName|address" — avoids repeat API calls within a session.
+    var menuItemCache: [String: [MenuFetchedItem]] = [:]
     @Published var syncPeerNames: [String] = []
     @Published var pendingSyncInvitation: SyncInvitation? = nil
     private var isReceivingSync = false
@@ -918,7 +928,8 @@ final class BillViewModel: ObservableObject {
             }
         }
     func clearCurrentBill() {
-        bill = Bill(people: [], items: [], taxPercent: 8, tipPercent: 18, restaurantName: "", date: Date(), receiptImageData: nil)
+        bill = BillViewModel.defaultBill()
+        menuItemCache = [:]
     }
     
     func searchBill(restaurantName: String, date: Date, context: NSManagedObjectContext) -> SavedBillEntity? {
@@ -1141,6 +1152,8 @@ struct ContentView: View {
 // MARK: - Appearance Settings View
 struct AppearanceSettingsView: View {
     @Environment(\.appearanceMode) private var appearanceMode
+    @AppStorage("defaultTaxPercent") private var defaultTaxPercent: Double = 8.0
+    @AppStorage("defaultTipPercent") private var defaultTipPercent: Double = 18.0
 
     var body: some View {
         NavigationStack {
@@ -1153,6 +1166,31 @@ struct AppearanceSettingsView: View {
                     Text("Appearance")
                 } footer: {
                     Text("\"System\" follows your iPhone's appearance setting in Settings → Display & Brightness.")
+                }
+
+                Section {
+                    Stepper(value: $defaultTaxPercent, in: 0...25, step: 0.5) {
+                        HStack {
+                            Text("Default Tax")
+                            Spacer()
+                            Text("\(defaultTaxPercent, specifier: "%.1f")%")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                    Stepper(value: $defaultTipPercent, in: 0...40, step: 1) {
+                        HStack {
+                            Text("Default Tip")
+                            Spacer()
+                            Text("\(defaultTipPercent, specifier: "%.0f")%")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                } header: {
+                    Text("Bill Defaults")
+                } footer: {
+                    Text("Applied automatically to every new bill. You can still adjust tax and tip per bill.")
                 }
 
                 Section("Support") {
@@ -1211,11 +1249,13 @@ struct HelpView: View {
                 DisclosureGroup {
                     helpText("""
                     1. Go to the **Bill** tab.
-                    2. Enter the restaurant name (required), and optionally an address and date.
+                    2. Enter the restaurant name (required), or tap 🔍 to search Maps — the name and address auto-fill from the result.
                     3. Add people using the manual field, Contacts, or a saved Group.
-                    4. Add items and assign them to the people who ordered them.
-                    5. Adjust tip and tax as needed.
-                    6. Tap **Save** — the bill appears in the History tab.
+                    4. Optionally tap **Birthday** on someone's row to cover their share, or **Exclude** to opt someone out of the birthday contribution.
+                    5. Add items and assign them — all people appear as a wrapping grid of toggle buttons, no scrolling needed.
+                    6. Tap **Browse Menu** (Items section header) to fetch the restaurant's menu via AI and add items directly.
+                    7. Adjust tip and tax as needed (or set defaults in the **Settings** tab).
+                    8. Tap **Save** — the bill appears in the History tab.
                     """)
                 } label: {
                     helpRow(icon: "list.bullet.clipboard", color: .blue, title: "Getting Started")
@@ -1229,7 +1269,7 @@ struct HelpView: View {
                 DisclosureGroup {
                     helpText("""
                     • **Name** — required before you can save, share, or export.
-                    • **Address** — optional. Tap the 🔍 magnifying glass to search for the restaurant by name using Maps. Tap a result to fill the address field automatically. Once an address is saved, the icon switches to a 🗺 map button — tap it to open the location in Apple Maps.
+                    • **Address** — optional. Tap the 🔍 magnifying glass to search for the restaurant using Maps. Selecting a result **auto-fills both the name and address** from the map, so they always match. Once saved, the icon switches to a 🗺 map button — tap it to open the location in Apple Maps.
                     • **Date** — defaults to today; tap to change it.
                     """)
                 } label: {
@@ -1270,11 +1310,24 @@ struct HelpView: View {
                     • Tap the **Birthday** capsule button on any person's row to flag them. Tap **Remove Birthday** to unmark.
                     • Multiple people can be marked at the same time.
                     • The 🎂 icon and pink highlight appear on their row; payment buttons are hidden since they owe nothing.
-                    • **How the split works:** items the birthday person ordered are redistributed to the non-birthday consumers of those items. If an item was ordered exclusively by birthday people, its cost is split among all non-birthday people in the bill.
+                    • **How the split works:** items the birthday person ordered are redistributed to the non-birthday, non-excluded consumers of those items. If an item was ordered exclusively by birthday people, its cost is split among all non-birthday, non-excluded people.
                     • Birthday indicators appear in the Share Bill preview, on both pages of the exported PDF, in the Saved Bills list, and in the Analytics tab.
                     """)
                 } label: {
                     helpRow(icon: "birthday.cake", color: .pink, title: "Birthday Person 🎂")
+                }
+
+                DisclosureGroup {
+                    helpText("""
+                    Use **Exclude** to let someone opt out of covering the birthday person's share.
+                    • Tap the **Exclude** capsule on any person's row to mark them with ⊖. Tap **Remove Exclude** to undo.
+                    • Excluded people pay only the items they personally consumed — their fair share is never redistributed to others.
+                    • The birthday person's costs are absorbed only by people who are neither birthday nor excluded.
+                    • You can combine Birthday and Exclude freely on the same bill — for example, a plus-one who only had one dish and doesn't want to chip in for the birthday.
+                    • The ⊖ badge and "own items only" note appear on their row and on both pages of the exported PDF.
+                    """)
+                } label: {
+                    helpRow(icon: "person.crop.circle.badge.minus", color: .orange, title: "Exclude from Birthday Share ⊖")
                 }
             }
 
@@ -1283,13 +1336,30 @@ struct HelpView: View {
                 DisclosureGroup {
                     helpText("""
                     • Tap **+ Add Item** to add a dish or drink with a name and price.
-                    • Tap an item to edit its name, price, or who shared it.
-                    • Assign consumers by toggling each person's name in the item editor — the cost is split equally among all selected people.
+                    • Tap the pencil icon on any item to edit its name or price.
+                    • Assign consumers by tapping names in the **wrapping grid** shown below each item — all people are visible at once, no horizontal scrolling. A checkmark means they're assigned to that item.
+                    • The cost is split equally among all assigned consumers.
                     • Swipe left on an item to delete it.
-                    • An item with no assigned consumers is split among all non-birthday people in the bill.
+                    • An item with no assigned consumers is split among all non-birthday, non-excluded people in the bill.
                     """)
                 } label: {
                     helpRow(icon: "cart", color: .green, title: "Adding & Assigning Items")
+                }
+
+                DisclosureGroup {
+                    helpText("""
+                    Once a restaurant name is set, tap **Browse Menu** in the Items section header to fetch that restaurant's menu using AI.
+                    • Each item shows its **name**, **price**, **description**, and **dietary tags** (🌱 Vegetarian, 🌿 Vegan, GF Gluten-Free, 🌶 Spicy).
+                    • Use the **category chips** at the top to filter by Appetizers, Mains, Desserts, Drinks, etc.
+                    • ⭐ **Popular** badges highlight the restaurant's best-known dishes.
+                    • Use the **search bar** to filter by name or description.
+                    • Tap items to select them (checkmark appears), then tap **Add Selected** to add them all to the bill at once.
+                    • If the restaurant address is set, it is used alongside the name to fetch the correct location's menu.
+                    • Results are **cached for the session** — opening Browse Menu again for the same restaurant is instant. Changing the restaurant name or starting a new bill fetches fresh results.
+                    • Requires an internet connection. Prices are AI-generated estimates — always verify against the actual menu.
+                    """)
+                } label: {
+                    helpRow(icon: "fork.knife.circle", color: .cyan, title: "Browse Menu (AI)")
                 }
             }
 
@@ -1300,6 +1370,7 @@ struct HelpView: View {
                     • Adjust the **Tip %** and **Tax %** sliders in the bill form.
                     • Toggle **Pre-tax tip** to calculate tip on the subtotal (before tax), or off to calculate tip on the post-tax total — varies by country convention.
                     • Each person's share updates instantly as you move the sliders.
+                    • To avoid adjusting these on every bill, go to **Settings → Bill Defaults** and set your preferred default tax and tip — new bills open with those values pre-filled.
                     """)
                 } label: {
                     helpRow(icon: "percent", color: .teal, title: "Tip & Tax")
@@ -1337,9 +1408,11 @@ struct HelpView: View {
             Section("Sharing & Export") {
                 DisclosureGroup {
                     helpText("""
-                    • **Export PDF** — generates a two-page PDF: page 1 shows the participants (with 🎂 indicators) and itemised list; page 2 shows each person's share breakdown and the attached receipt photo if any. Share via Messages, Mail, AirDrop, etc.
-                    • **Share Bill** — sends a deep-link URL that another iPhone with this app can open to load the exact same bill (people, items, birthday flags, tip, and tax).
-                    • The **Share Bill preview** shows a summary card including any birthday people flagged on the bill.
+                    • **Export PDF** — generates a professional two-page PDF receipt:
+                      – Page 1: branded header with restaurant name, address and date; participant list with 🎂 and ⊖ indicators; formatted items table (Item | Shared By | Price) with alternating rows; totals block with subtotal, tax, tip, and Grand Total.
+                      – Page 2: per-person breakdown cards showing items, tax, and tip share; birthday people show "Covered by group 🎉"; excluded people show "own items only"; Zelle info; attached receipt photo.
+                    • **Share Bill** — sends a deep-link URL that another iPhone with this app can open to load the exact same bill (people, items, birthday/exclude flags, tip, and tax).
+                    • The **Share Bill preview** shows a summary card including birthday and excluded indicators.
                     • **History tab** — view all saved bills. Tap a bill to load it, swipe left to share it, or swipe to delete.
                     • **Export All Bills** — in the History tab, export every saved bill as a single JSON file for backup.
                     """)
@@ -1386,6 +1459,7 @@ struct HelpView: View {
                 DisclosureGroup {
                     helpText("""
                     • **Appearance** — choose Light, Dark, or System to match your iPhone's display setting in Settings → Display & Brightness.
+                    • **Bill Defaults** — set a default Tax % (0–25%, 0.5% steps) and Tip % (0–40%, 1% steps) that are pre-filled on every new bill. You can still change them per bill at any time.
                     • **How to Use This App** — you're reading it!
                     """)
                 } label: {
@@ -1785,6 +1859,7 @@ struct CurrentBillView: View {
     @State private var itemToEdit: Item? = nil
     @State private var billShareItem: IdentifiableURL? = nil
     @State private var showingRestaurantSearch = false
+    @State private var showingMenuBrowser = false
 
     var body: some View {
         NavigationView {
@@ -1902,7 +1977,23 @@ struct CurrentBillView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    Section("Items") { ItemsEditor(itemToEdit: $itemToEdit) }
+                    Section {
+                        ItemsEditor(itemToEdit: $itemToEdit)
+                    } header: {
+                        HStack {
+                            Text("Items")
+                            Spacer()
+                            Button {
+                                showingMenuBrowser = true
+                            } label: {
+                                Label("Browse Menu", systemImage: "fork.knife.circle")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(vm.bill.restaurantName.trimmingCharacters(in: .whitespaces).isEmpty ? Color.secondary : Color.accentColor)
+                            }
+                            .disabled(vm.bill.restaurantName.trimmingCharacters(in: .whitespaces).isEmpty)
+                            .buttonStyle(.plain)
+                        }
+                    }
                     Section("Tax & Tip") {
                         HStack {
                             Text("Tax (%)")
@@ -1969,14 +2060,6 @@ struct CurrentBillView: View {
                         Button(role: .destructive) { vm.clearCurrentBill() } label: {
                             Label("Clear Bill", systemImage: "xmark.circle")
                         }
-                        Button {
-                            UIApplication.shared.sendAction(
-                                #selector(UIResponder.resignFirstResponder),
-                                to: nil, from: nil, for: nil
-                            )
-                        } label: {
-                            Label("Dismiss Keyboard", systemImage: "keyboard.chevron.compact.down")
-                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
@@ -2013,6 +2096,18 @@ struct CurrentBillView: View {
                     }
                 }
                 .frame(minWidth: 300, maxWidth: .infinity, minHeight: 300, maxHeight: .infinity, alignment: .init(horizontal: .leading, vertical: .top))
+            }
+            .scrollDismissesKeyboard(.immediately)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil
+                        )
+                    }
+                }
             }
             .fullScreenCover(isPresented: $showingReceiptZoom) {
                 if let data = vm.bill.receiptImageData, let uiImage = UIImage(data: data) {
@@ -2070,8 +2165,19 @@ struct CurrentBillView: View {
                 BillShareSheet(bill: vm.bill, shareURL: item.url)
             }
             .sheet(isPresented: $showingRestaurantSearch) {
-                RestaurantSearchSheet(restaurantName: vm.bill.restaurantName) { address in
+                RestaurantSearchSheet(restaurantName: vm.bill.restaurantName) { name, address in
+                    vm.bill.restaurantName    = name
                     vm.bill.restaurantAddress = address
+                }
+            }
+            .sheet(isPresented: $showingMenuBrowser) {
+                MenuBrowserSheet(
+                    restaurantName: vm.bill.restaurantName,
+                    restaurantAddress: vm.bill.restaurantAddress
+                ) { fetched in
+                    for item in fetched {
+                        vm.addItem(name: item.name, price: item.price)
+                    }
                 }
             }
             .alert("Live Sync Invitation", isPresented: Binding(
@@ -2464,14 +2570,14 @@ struct SavedBillsView: View {
 /// a result to populate the bill's address field.
 struct RestaurantSearchSheet: View {
     let restaurantName: String
-    let onSelect: (String) -> Void
+    let onSelect: (String, String) -> Void   // (name, address)
 
     @Environment(\.dismiss) private var dismiss
     @State private var query: String
     @State private var results: [MKMapItem] = []
     @State private var isSearching = false
 
-    init(restaurantName: String, onSelect: @escaping (String) -> Void) {
+    init(restaurantName: String, onSelect: @escaping (String, String) -> Void) {
         self.restaurantName = restaurantName
         self.onSelect = onSelect
         _query = State(initialValue: restaurantName)
@@ -2489,7 +2595,7 @@ struct RestaurantSearchSheet: View {
                     ForEach(results, id: \.self) { item in
                         Button {
                             if let address = formatted(item.placemark) {
-                                onSelect(address)
+                                onSelect(item.name ?? restaurantName, address)
                                 dismiss()
                             }
                         } label: {
@@ -3409,21 +3515,23 @@ struct ItemsEditor: View {
                 }
                 .buttonStyle(.plain)
             }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack {
-                    ForEach(vm.bill.people) { person in
-                        let isOn = item.consumers.contains(person.id)
-                        Button {
-                            vm.toggleConsumer(item: item, person: person)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                                Text(person.name)
-                            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 88, maximum: 180), spacing: 6)], spacing: 6) {
+                ForEach(vm.bill.people) { person in
+                    let isOn = item.consumers.contains(person.id)
+                    Button {
+                        vm.toggleConsumer(item: item, person: person)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 13))
+                            Text(person.name)
+                                .font(.system(size: 13))
+                                .lineLimit(1)
                         }
-                        .buttonStyle(.bordered)
-                        .tint(isOn ? .accentColor : .gray)
+                        .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered)
+                    .tint(isOn ? .accentColor : .secondary)
                 }
             }
         }
@@ -3488,166 +3596,414 @@ struct SummarySection: View {
 // MARK: - PDF Receipt View
 struct ReceiptView: View {
     @EnvironmentObject var vm: BillViewModel
-    var date = Date()
+
+    private let ink   = Color(red: 0.10, green: 0.16, blue: 0.26)   // dark navy
+    private let band  = Color(red: 0.17, green: 0.24, blue: 0.36)   // section headers
+    private let stripe = Color(red: 0.97, green: 0.97, blue: 0.985) // alternating rows
+    private var curr: String { Locale.current.currency?.identifier ?? "USD" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("BILL SPLIT RECEIPT \(vm.bill.restaurantName)").font(.title2).fontWeight(.bold)
-            Text(date.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(.secondary)
-            Divider()
-            Text("Participants").fontWeight(.semibold)
-//            VStack(alignment: .leading) {
-//                ForEach(vm.bill.people) { Text("• \($0.name)").font(.caption) }
-//            }
-            //let names = [String](vm.bill.people.map(\.init(\.name)))
+        VStack(alignment: .leading, spacing: 0) {
+
+            // ── Page header ──────────────────────────────────────────────
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("BI SPLITTER")
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.55))
+                    Text(vm.bill.restaurantName.isEmpty ? "Bill Receipt" : vm.bill.restaurantName.uppercased())
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                    if let addr = vm.bill.restaurantAddress, !addr.isEmpty {
+                        Text(addr)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(vm.bill.date, style: .date)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                    Text("\(vm.bill.people.count) guest\(vm.bill.people.count == 1 ? "" : "s")")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text("\(vm.bill.items.count) item\(vm.bill.items.count == 1 ? "" : "s")")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .background(ink)
+
+            // ── Participants ─────────────────────────────────────────────
+            pdfSectionHeader("PARTY")
+
             let names: [String] = vm.bill.people.map {
                 if $0.isBirthday { return "🎂 \($0.name)" }
                 if $0.isExcluded { return "⊖ \($0.name)" }
                 return $0.name
             }
-            var chunkedNames: [[String]] {
-                    stride(from: 0, to: names.count, by: 2).map {
-                        Array(names[$0..<min($0 + 2, names.count)])
-                    }
-                }
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: 0) {
-                    ForEach(chunkedNames, id: \.self) { column in
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(column, id: \.self) { name in
-                                Text("• \(name)")
-                                    .font(.caption)
+            let cols = 3
+            let rows = max(1, Int(ceil(Double(names.count) / Double(cols))))
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(0..<rows, id: \.self) { row in
+                    HStack(spacing: 0) {
+                        ForEach(0..<cols, id: \.self) { col in
+                            let idx = row * cols + col
+                            Group {
+                                if idx < names.count {
+                                    HStack(spacing: 5) {
+                                        Circle().fill(band).frame(width: 5, height: 5)
+                                        Text(names[idx]).font(.system(size: 11)).foregroundStyle(.black)
+                                    }
+                                } else {
+                                    Color.clear
+                                }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
-                .padding()
-            }
-            let birthdayNames = vm.bill.people.filter { $0.isBirthday }.map { $0.name }
-            if !birthdayNames.isEmpty {
-                Text("🎂 Birthday: \(birthdayNames.joined(separator: ", ")) — covered by the group")
-                    .font(.caption)
-                    .foregroundStyle(.pink)
-            }
-            let excludedNames = vm.bill.people.filter { $0.isExcluded && !$0.isBirthday }.map { $0.name }
-            if !excludedNames.isEmpty {
-                Text("⊖ Excluded from birthday share: \(excludedNames.joined(separator: ", ")) — only pay own items")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-            Divider()
-            Text("Items").fontWeight(.semibold)
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(vm.bill.items) { item in
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading) {
-                            Text(item.name).font(.caption)
-                            if !item.consumers.isEmpty {
-                                Text("Shared by: " + vm.bill.people.filter { item.consumers.contains($0.id) }.map {
-                                    if $0.isBirthday { return "🎂 \($0.name)" }
-                                    if $0.isExcluded { return "⊖ \($0.name)" }
-                                    return $0.name
-                                }.joined(separator: ", "))
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        Text(item.price, format: .currency(code: Locale.current.currency?.identifier ?? "USD")).font(.caption)
-                    }
+                let bdayNames = vm.bill.people.filter { $0.isBirthday }.map { $0.name }
+                if !bdayNames.isEmpty {
+                    Text("🎂 \(bdayNames.joined(separator: ", ")) — share covered by the group")
+                        .font(.system(size: 10)).foregroundStyle(Color(red: 0.78, green: 0.18, blue: 0.46))
+                }
+                let exclNames = vm.bill.people.filter { $0.isExcluded && !$0.isBirthday }.map { $0.name }
+                if !exclNames.isEmpty {
+                    Text("⊖ \(exclNames.joined(separator: ", ")) — only pay own items")
+                        .font(.system(size: 10)).foregroundStyle(.orange)
                 }
             }
-           
-            Divider()
-            VStack(alignment: .leading, spacing: 4) {
-                HStack { Text("Subtotal").font(.caption); Spacer(); Text(vm.subtotal, format: .currency(code: Locale.current.currency?.identifier ?? "USD")).font(.caption)}
-                HStack { Text("Tax (\(vm.bill.taxPercent.formatted()))% ").font(.caption); Spacer(); Text(vm.taxAmount, format: .currency(code: Locale.current.currency?.identifier ?? "USD")).font(.caption) }
-                HStack { Text("Tip (\(vm.bill.tipPercent.formatted()))% ").font(.caption); Spacer(); Text(vm.tipAmount, format: .currency(code: Locale.current.currency?.identifier ?? "USD")).font(.caption) }
-                HStack { Text("Grand Total").font(.caption).fontWeight(.semibold); Spacer(); Text(vm.grandTotal, format: .currency(code: Locale.current.currency?.identifier ?? "USD")).fontWeight(.semibold).font(.caption) }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+
+            // ── Items ────────────────────────────────────────────────────
+            pdfSectionHeader("ITEMS")
+
+            // Column header
+            HStack {
+                Text("ITEM").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                Spacer()
+                Text("SHARED BY").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    .frame(width: 160, alignment: .leading)
+                Text("PRICE").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    .frame(width: 60, alignment: .trailing)
             }
-            Divider()
-            
-            Text("Generated by BI Splitter. Copyright © 2025 Ricardo Fong. All rights reserved.").font(.footnote).foregroundStyle(.secondary)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 5)
+            .background(band)
+
+            ForEach(Array(vm.bill.items.enumerated()), id: \.element.id) { idx, item in
+                HStack(alignment: .top) {
+                    Text(item.name)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(
+                        item.consumers.isEmpty ? "—" :
+                        vm.bill.people.filter { item.consumers.contains($0.id) }.map {
+                            $0.isBirthday ? "🎂 \($0.name)" :
+                            $0.isExcluded  ? "⊖ \($0.name)" : $0.name
+                        }.joined(separator: ", ")
+                    )
+                    .font(.system(size: 10))
+                    .foregroundStyle(Color.gray)
+                    .frame(width: 160, alignment: .leading)
+                    Text(item.price, format: .currency(code: curr))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.black)
+                        .frame(width: 60, alignment: .trailing)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 7)
+                .background(idx.isMultiple(of: 2) ? Color.white : stripe)
+            }
+
+            // ── Totals ───────────────────────────────────────────────────
+            pdfSectionHeader("TOTALS")
+
+            VStack(spacing: 0) {
+                pdfTotalRow(label: "Subtotal",
+                            detail: nil,
+                            value: vm.subtotal,
+                            bold: false, highlight: false)
+                pdfTotalRow(label: "Tax",
+                            detail: String(format: "%.1f%%", vm.bill.taxPercent),
+                            value: vm.taxAmount,
+                            bold: false, highlight: false)
+                pdfTotalRow(label: "Tip",
+                            detail: String(format: "%.0f%%", vm.bill.tipPercent),
+                            value: vm.tipAmount,
+                            bold: false, highlight: false)
+                HStack {
+                    Text("GRAND TOTAL")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Text(vm.grandTotal, format: .currency(code: curr))
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 10)
+                .background(ink)
+            }
+
+            Spacer(minLength: 8)
+
+            // ── Footer ───────────────────────────────────────────────────
+            HStack {
+                Text("Generated by BI Splitter")
+                Spacer()
+                Text("© \(Calendar.current.component(.year, from: Date())) Ricardo Fong · All rights reserved.")
+            }
+            .font(.system(size: 8))
+            .foregroundStyle(Color(white: 0.6))
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+            .padding(.top, 6)
         }
-        .foregroundStyle(.black)
-        .background(.white)
-        .padding(24)
+        .background(Color.white)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func pdfSectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 5)
+            .background(band)
+    }
+
+    @ViewBuilder
+    private func pdfTotalRow(label: String, detail: String?, value: Double, bold: Bool, highlight: Bool) -> some View {
+        HStack {
+            HStack(spacing: 4) {
+                Text(label).font(.system(size: 11, weight: bold ? .semibold : .regular))
+                if let d = detail {
+                    Text(d).font(.system(size: 10)).foregroundStyle(Color.gray)
+                }
+            }
+            Spacer()
+            Text(value, format: .currency(code: curr))
+                .font(.system(size: 11, weight: bold ? .semibold : .regular))
+        }
+        .foregroundStyle(highlight ? Color.white : Color.black)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 7)
+        .background(highlight ? ink : Color.white)
     }
 }
 
-// MARK: - PDF Receipt View Page2
+// MARK: - PDF Receipt View Page 2
 struct ReceiptView2: View {
     @EnvironmentObject var vm: BillViewModel
-    var date = Date()
+
+    private let ink   = Color(red: 0.10, green: 0.16, blue: 0.26)
+    private let band  = Color(red: 0.17, green: 0.24, blue: 0.36)
+    private let stripe = Color(red: 0.97, green: 0.97, blue: 0.985)
+    private var curr: String { Locale.current.currency?.identifier ?? "USD" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Divider()
-            Text("To Pay Per Person").fontWeight(.semibold)
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(vm.bill.people) { person in
-                    let share = vm.totalForPerson(person.id)
-                    HStack {
-                        HStack(spacing: 4) {
-                            if person.isBirthday {
-                                Text("🎂")
-                            } else if person.isExcluded {
-                                Text("⊖").foregroundStyle(.orange)
-                            }
-                            Text(person.name)
-                                .foregroundStyle(
-                                    person.isBirthday ? .pink :
-                                    person.isExcluded  ? Color.orange : .primary
-                                )
-                        }
-                        Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+
+            // ── Mini header ──────────────────────────────────────────────
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("BI SPLITTER")
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.55))
+                    Text(vm.bill.restaurantName.isEmpty ? "Bill Receipt" : vm.bill.restaurantName.uppercased())
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                Spacer()
+                Text("INDIVIDUAL BREAKDOWN")
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .background(ink)
+
+            // Column headers
+            HStack {
+                Text("NAME").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("BREAKDOWN").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("TOTAL").font(.system(size: 9, weight: .semibold)).foregroundStyle(.white.opacity(0.7))
+                    .frame(width: 70, alignment: .trailing)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 5)
+            .background(band)
+
+            // ── Per-person rows ──────────────────────────────────────────
+            ForEach(Array(vm.bill.people.enumerated()), id: \.element.id) { idx, person in
+                let share = vm.totalForPerson(person.id)
+                HStack(alignment: .center) {
+                    // Name + avatar
+                    HStack(spacing: 8) {
                         if person.isBirthday {
-                            Text("$0.00 · Covered by group 🎉")
-                                .foregroundStyle(.pink)
+                            Text("🎂").font(.system(size: 16))
+                        } else if person.isExcluded {
+                            ZStack {
+                                Circle()
+                                    .stroke(Color.orange, lineWidth: 1.5)
+                                    .frame(width: 22, height: 22)
+                                Text("⊖").font(.system(size: 10)).foregroundStyle(.orange)
+                            }
                         } else {
-                            VStack(alignment: .trailing, spacing: 1) {
-                                Text(share.total, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
-                                if person.isExcluded {
-                                    Text("Own items only")
-                                        .font(.caption2)
-                                        .foregroundStyle(.orange)
-                                }
+                            ZStack {
+                                Circle().fill(band).frame(width: 22, height: 22)
+                                Text(String(person.name.prefix(1)).uppercased())
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(person.name)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(
+                                    person.isBirthday ? Color(red: 0.78, green: 0.18, blue: 0.46) :
+                                    person.isExcluded  ? .orange : .black
+                                )
+                            if person.isExcluded {
+                                Text("own items only")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(.orange)
                             }
                         }
                     }
-                    if !person.isBirthday {
-                        Text("  Items: \(share.preTax.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))) | Tax: \(share.tax.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))) | Tip: \(share.tip.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD")))")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Breakdown pills
+                    if person.isBirthday {
+                        Text("Covered by group 🎉")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color(red: 0.78, green: 0.18, blue: 0.46))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        HStack(spacing: 0) {
+                            breakdownCell("Items", value: share.preTax)
+                            Text("·").font(.system(size: 9)).foregroundStyle(.gray).padding(.horizontal, 3)
+                            breakdownCell("Tax", value: share.tax)
+                            Text("·").font(.system(size: 9)).foregroundStyle(.gray).padding(.horizontal, 3)
+                            breakdownCell("Tip", value: share.tip)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    Divider()
+
+                    // Total
+                    if person.isBirthday {
+                        Text("$0.00")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(Color(red: 0.78, green: 0.18, blue: 0.46))
+                            .frame(width: 70, alignment: .trailing)
+                    } else {
+                        Text(share.total, format: .currency(code: curr))
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.black)
+                            .frame(width: 70, alignment: .trailing)
+                    }
                 }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 11)
+                .background(idx.isMultiple(of: 2) ? Color.white : stripe)
+
+                Rectangle()
+                    .fill(Color(white: 0.88))
+                    .frame(height: 0.5)
             }
-            Divider()
-            if let email = vm.bill.zelleEmail, !email.isEmpty {
-                Text("Zelle to email: \(email)").fontWeight(.semibold)
+
+            // ── Payment info ─────────────────────────────────────────────
+            let hasZelle = !(vm.bill.zelleEmail ?? "").isEmpty || !(vm.bill.zellePhone ?? "").isEmpty
+            if hasZelle {
+                HStack(spacing: 0) {
+                    Image(systemName: "dollarsign.circle.fill")
+                        .foregroundStyle(.white)
+                        .font(.system(size: 13))
+                    Text("  SEND PAYMENT VIA ZELLE")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 6)
+                .background(band)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    if let email = vm.bill.zelleEmail, !email.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "envelope").font(.system(size: 10)).foregroundStyle(.gray)
+                            Text(email).font(.system(size: 11))
+                        }
+                    }
+                    if let phone = vm.bill.zellePhone, !phone.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "phone").font(.system(size: 10)).foregroundStyle(.gray)
+                            Text(phone).font(.system(size: 11))
+                        }
+                    }
+                }
+                .foregroundStyle(.black)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 10)
             }
-            if let phone = vm.bill.zellePhone, !phone.isEmpty {
-                Text("Zelle Phone: \(phone)").fontWeight(.semibold)
-            }
-            Spacer(minLength: 0)
-            Divider()
+
+            // ── Attached receipt photo ───────────────────────────────────
             if let data = vm.bill.receiptImageData, let uiImage = UIImage(data: data) {
-                Section("Attached Receipt") {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 200)
+                HStack(spacing: 0) {
+                    Image(systemName: "camera.fill")
+                        .foregroundStyle(.white).font(.system(size: 11))
+                    Text("  ATTACHED RECEIPT")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.8))
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 6)
+                .background(band)
+
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 180)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
             }
-                      
-            Text("Generated by BI Splitter. Copyright © 2025 Ricardo Fong. All rights reserved.").font(.footnote).foregroundStyle(.secondary)
+
+            Spacer(minLength: 8)
+
+            // ── Footer ───────────────────────────────────────────────────
+            HStack {
+                Text("Generated by BI Splitter")
+                Spacer()
+                Text("© \(Calendar.current.component(.year, from: Date())) Ricardo Fong · All rights reserved.")
+            }
+            .font(.system(size: 8))
+            .foregroundStyle(Color(white: 0.6))
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+            .padding(.top, 6)
         }
-        .foregroundStyle(.black)
-        .background(.white)
-        .padding(24)
+        .background(Color.white)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func breakdownCell(_ label: String, value: Double) -> some View {
+        HStack(spacing: 2) {
+            Text(label).font(.system(size: 9)).foregroundStyle(.gray)
+            Text(value, format: .currency(code: curr)).font(.system(size: 9, weight: .medium)).foregroundStyle(.black)
+        }
     }
 }
 
@@ -3828,6 +4184,347 @@ struct ReceiptScannerView: UIViewControllerRepresentable {
             print("Scanner failed: \(error.localizedDescription)")
             controller.dismiss(animated: true)
         }
+    }
+}
+
+// MARK: - Menu Browser
+
+struct MenuFetchedItem: Identifiable, Decodable {
+    let id: UUID
+    let name: String
+    let price: Double
+    let category: String
+    let description: String
+    let isPopular: Bool
+    let tags: [String]   // "vegetarian" | "vegan" | "gluten-free" | "spicy"
+
+    init(from decoder: Decoder) throws {
+        let c    = try decoder.container(keyedBy: CodingKeys.self)
+        id          = UUID()
+        name        = try  c.decode(String.self,   forKey: .name)
+        price       = try  c.decode(Double.self,   forKey: .price)
+        category    = (try? c.decode(String.self,  forKey: .category))    ?? "Other"
+        description = (try? c.decode(String.self,  forKey: .description)) ?? ""
+        isPopular   = (try? c.decode(Bool.self,    forKey: .isPopular))   ?? false
+        tags        = (try? c.decode([String].self, forKey: .tags))       ?? []
+    }
+
+    enum CodingKeys: String, CodingKey { case name, price, category, description, isPopular, tags }
+}
+
+struct MenuFetcher {
+    static let openAIKey: String = ReceiptParser.openAIKey
+
+    static func fetch(restaurantName: String, address: String?) async throws -> [MenuFetchedItem] {
+        guard !openAIKey.isEmpty else { throw URLError(.userAuthenticationRequired) }
+
+        let location = address.map { " located at \($0)" } ?? ""
+        let systemPrompt = """
+        You are a restaurant menu expert. Generate a comprehensive, realistic menu for "\(restaurantName)"\(location).
+
+        Return ONLY a valid JSON array — no markdown, no explanation, no code fences.
+        Each element must have these fields:
+          "name":        string  — dish or drink name
+          "price":       number  — realistic USD price matching this restaurant's style and price tier
+          "category":    string  — one of: Appetizers, Soups & Salads, Entrees, Pasta & Pizza, Sandwiches & Burgers, Sushi & Rolls, Tacos & Burritos, Sides, Desserts, Beverages, Cocktails & Beer, Brunch (use only the categories that fit this restaurant's cuisine)
+          "description": string  — one sentence describing the dish and its key ingredients
+          "isPopular":   boolean — true for ~15% of items that are signature or most-ordered dishes
+          "tags":        array   — any subset of ["vegetarian","vegan","gluten-free","spicy"] that apply
+
+        Return 40-55 items spanning all relevant categories. Match the cuisine, style, and price tier accurately.
+        If the restaurant is a known chain, use its actual menu. Otherwise infer from the name and location.
+        """
+
+        let body: [String: Any] = [
+            "model": "gpt-4o",
+            "temperature": 0.2,
+            "messages": [
+                ["role": "system", "content": systemPrompt],
+                ["role": "user",   "content": "Generate the full menu now."]
+            ]
+        ]
+
+        var req = URLRequest(url: URL(string: "https://api.openai.com/v1/chat/completions")!)
+        req.httpMethod  = "POST"
+        req.setValue("Bearer \(openAIKey)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json",    forHTTPHeaderField: "Content-Type")
+        req.httpBody    = try JSONSerialization.data(withJSONObject: body)
+        req.timeoutInterval = 45
+
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+
+        struct Completion: Decodable {
+            struct Choice: Decodable {
+                struct Message: Decodable { let content: String }
+                let message: Message
+            }
+            let choices: [Choice]
+        }
+        let completion = try JSONDecoder().decode(Completion.self, from: data)
+        guard let content = completion.choices.first?.message.content else {
+            throw URLError(.cannotParseResponse)
+        }
+        // Strip markdown code fences if the model wraps the JSON anyway
+        let stripped = content
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "^```json\\s*", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "^```\\s*",     with: "", options: .regularExpression)
+            .replacingOccurrences(of: "```$",          with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let jsonData = stripped.data(using: .utf8) else {
+            throw URLError(.cannotParseResponse)
+        }
+        let items = try JSONDecoder().decode([MenuFetchedItem].self, from: jsonData)
+        return items.filter { $0.price > 0 }
+    }
+}
+
+struct MenuBrowserSheet: View {
+    let restaurantName: String
+    let restaurantAddress: String?
+    let onAdd: ([MenuFetchedItem]) -> Void
+
+    @EnvironmentObject private var vm: BillViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var items: [MenuFetchedItem] = []
+    @State private var selected: Set<UUID> = []
+    @State private var isLoading = true
+    @State private var errorMessage: String? = nil
+    @State private var searchText = ""
+    @State private var activeCategory: String? = nil   // nil = All
+
+    private var cacheKey: String { "\(restaurantName)|\(restaurantAddress ?? "")" }
+
+    private var allCategories: [String] {
+        var seen = Set<String>()
+        return items.compactMap { seen.insert($0.category).inserted ? $0.category : nil }
+    }
+
+    private var displayedCategories: [String] {
+        guard searchText.isEmpty else {
+            // While searching ignore the chip filter — show everything that matches
+            var seen = Set<String>()
+            return filteredItems(category: nil)
+                .compactMap { seen.insert($0.category).inserted ? $0.category : nil }
+        }
+        if let cat = activeCategory { return [cat] }
+        return allCategories
+    }
+
+    private func filteredItems(category: String?) -> [MenuFetchedItem] {
+        var result = items
+        if let cat = category { result = result.filter { $0.category == cat } }
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.name.localizedCaseInsensitiveContains(searchText) ||
+                $0.description.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+        return result
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView().scaleEffect(1.4)
+                        Text("Building menu for \(restaurantName)…")
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        Text("This may take a few seconds")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error = errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "fork.knife.circle")
+                            .font(.system(size: 52))
+                            .foregroundStyle(.secondary)
+                        Text(error)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
+                        Button("Try Again") { Task { await load() } }
+                            .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    VStack(spacing: 0) {
+                        // Category filter chips
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                categoryChip(label: "All", isActive: activeCategory == nil) {
+                                    activeCategory = nil
+                                }
+                                ForEach(allCategories, id: \.self) { cat in
+                                    categoryChip(label: cat, isActive: activeCategory == cat) {
+                                        activeCategory = (activeCategory == cat) ? nil : cat
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                        }
+                        .background(Color(.systemGroupedBackground))
+
+                        Divider()
+
+                        List {
+                            // Disclaimer
+                            Section {
+                                Label("Prices are AI-estimated. Tap any item to edit after adding.",
+                                      systemImage: "info.circle")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            ForEach(displayedCategories, id: \.self) { category in
+                                let rows = filteredItems(category: category)
+                                if !rows.isEmpty {
+                                    Section(category) {
+                                        ForEach(rows) { item in
+                                            menuItemRow(item)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .listStyle(.insetGrouped)
+                        .searchable(text: $searchText, prompt: "Search dishes or ingredients")
+                    }
+                }
+            }
+            .navigationTitle(restaurantName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(selected.isEmpty ? "Add Items" : "Add \(selected.count)") {
+                        onAdd(items.filter { selected.contains($0.id) })
+                        dismiss()
+                    }
+                    .disabled(selected.isEmpty)
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+        .task { await load() }
+    }
+
+    @ViewBuilder
+    private func menuItemRow(_ item: MenuFetchedItem) -> some View {
+        Button {
+            if selected.contains(item.id) { selected.remove(item.id) }
+            else                          { selected.insert(item.id) }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                // Selection circle
+                Image(systemName: selected.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selected.contains(item.id) ? Color.accentColor : Color.secondary.opacity(0.4))
+                    .font(.title3)
+                    .padding(.top, 2)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    // Name row
+                    HStack(spacing: 6) {
+                        Text(item.name)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                        if item.isPopular {
+                            Text("⭐ Popular")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
+                    }
+
+                    // Description
+                    if !item.description.isEmpty {
+                        Text(item.description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    // Dietary tags + price
+                    HStack(spacing: 6) {
+                        ForEach(item.tags, id: \.self) { tag in
+                            dietaryBadge(tag)
+                        }
+                        Spacer()
+                        Text(item.price, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func dietaryBadge(_ tag: String) -> some View {
+        let (label, color): (String, Color) = switch tag {
+        case "vegetarian":  ("🌱 Veg",    .green)
+        case "vegan":       ("🌿 Vegan",  .green)
+        case "gluten-free": ("GF",        .orange)
+        case "spicy":       ("🌶 Spicy",  .red)
+        default:            ("",          .clear)
+        }
+        if !label.isEmpty {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(color)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(color.opacity(0.12))
+                .clipShape(Capsule())
+        }
+    }
+
+    @ViewBuilder
+    private func categoryChip(label: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.subheadline.weight(isActive ? .semibold : .regular))
+                .foregroundStyle(isActive ? Color.white : Color.primary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(isActive ? Color.accentColor : Color(.tertiarySystemFill))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func load() async {
+        // Return immediately if already cached for this restaurant + address combo
+        if let cached = vm.menuItemCache[cacheKey] {
+            items = cached
+            isLoading = false
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        do {
+            let fetched = try await MenuFetcher.fetch(restaurantName: restaurantName, address: restaurantAddress)
+            vm.menuItemCache[cacheKey] = fetched
+            items = fetched
+        } catch {
+            errorMessage = "Couldn't load the menu. Check your connection and try again."
+        }
+        isLoading = false
     }
 }
 
