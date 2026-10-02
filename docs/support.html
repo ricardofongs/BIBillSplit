@@ -213,6 +213,21 @@
         <strong>Analytics</strong>
         <span>Top spenders, averages, and spending over time</span>
       </div>
+      <div class="feature-item">
+        <div class="icon">↪</div>
+        <strong>Not Paying<span class="badge new">Pro</span></strong>
+        <span>Flag someone as not paying and pick exactly who covers their share</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">💳</div>
+        <strong>Payment Defaults<span class="badge new">Pro</span></strong>
+        <span>Save your Zelle, Venmo, and Cash App info once — pre-filled on every bill</span>
+      </div>
+      <div class="feature-item">
+        <div class="icon">🎨</div>
+        <strong>PDF Branding<span class="badge new">Pro</span></strong>
+        <span>Add your own logo and header color to every exported receipt</span>
+      </div>
     </div>
   </div>
 
@@ -232,6 +247,7 @@
       <li><strong>Export or share</strong> — Use the PDF export button to save a professional two-page receipt, or <strong>Share Bill</strong> to send the full bill to another device.</li>
       <li><strong>Save the bill</strong> — Tap the save icon (↓) in the top right. You'll need to enter a restaurant name first.</li>
       <li><strong>Default tax &amp; tip</strong> — Go to the <strong>Settings</strong> tab to set your preferred default tax and tip percentages. Every new bill starts with those values pre-filled.</li>
+      <li><strong>Go Pro</strong> — Tap <strong>Unlock Pro</strong> in Settings for a one-time purchase that unlocks the <strong>Not Paying</strong> feature, saved <strong>Payment Defaults</strong> (Zelle/Venmo/Cash App), and custom <strong>PDF Branding</strong> (logo + header color).</li>
     </ul>
   </div>
 
@@ -279,6 +295,20 @@
 
     <hr class="section-rule">
 
+    <h3>↪ Not Paying <span class="badge">Pro</span></h3>
+    <p>Sometimes one person's share needs to be covered by a specific other person — a parent covering a kid's meal, one friend treating another — rather than split evenly across the whole table. Tap the <strong>Not Paying</strong> capsule on a person's row to set this up.</p>
+    <ul>
+      <li>If Pro isn't unlocked yet, tapping the capsule opens the paywall so you can purchase or restore it.</li>
+      <li>Once unlocked, tapping it opens a picker where you choose exactly <strong>one</strong> other person on the bill to cover the full share — items, tax, and tip.</li>
+      <li>The flagged person shows <strong>$0.00</strong> and a purple "Paid by [name]" note; the designated payer's own total increases by that exact amount.</li>
+      <li>Not Paying is mutually exclusive with Birthday and Exclude on the same person — turning one on clears the others.</li>
+      <li>You can't pick someone who is themselves flagged Not Paying as the payer, so shares can never chain through multiple people.</li>
+      <li>Removing a person from the bill automatically clears any Not Paying assignment that pointed to them, so totals never silently fall out of balance.</li>
+      <li>The ↪ indicator and "Paid by" note appear on the person's row, on both pages of the exported PDF, and in the Share Bill preview.</li>
+    </ul>
+
+    <hr class="section-rule">
+
     <h3>🤖 Browse Menu <span class="badge new">New</span></h3>
     <p>Once a restaurant name is set, tap the <strong>Browse Menu</strong> button in the Items section header. BI Splitter uses AI to look up the restaurant's menu and returns a rich item list with:</p>
     <ul>
@@ -306,9 +336,10 @@
     <h3>📄 Professional PDF Export <span class="badge new">Updated</span></h3>
     <p>Tap the PDF export button to generate a two-page professional receipt:</p>
     <ul>
-      <li><strong>Page 1</strong> — A branded header with the restaurant name, address, and date. A participant list with 🎂 (birthday) and ⊖ (excluded) indicators. A three-column items table (Item | Shared By | Price) with alternating row stripes. A totals block showing subtotal, tax, tip, and a highlighted Grand Total bar.</li>
-      <li><strong>Page 2</strong> — Individual per-person breakdown cards showing each person's items, tax, and tip share. Birthday people show "Covered by group 🎉" in pink. Excluded people show "own items only" in orange. Zelle payment information (if entered). The attached receipt photo (if any).</li>
+      <li><strong>Page 1</strong> — A branded header with the restaurant name, address, and date. A participant list with 🎂 (birthday), ⊖ (excluded), and ↪ (Not Paying) indicators. A three-column items table (Item | Shared By | Price) with alternating row stripes. A totals block showing subtotal, tax, tip, and a highlighted Grand Total bar.</li>
+      <li><strong>Page 2</strong> — Individual per-person breakdown cards showing each person's items, tax, and tip share. Birthday people show "Covered by group 🎉" in pink. Excluded people show "own items only" in orange. Not Paying people show "Paid by [name]" in purple. Zelle, Venmo, and Cash App payment information (if entered). The attached receipt photo (if any).</li>
     </ul>
+    <p style="margin-top:8px;"><strong>PDF Branding <span class="badge">Pro</span></strong> — In <strong>Settings → PDF Branding</strong>, upload a logo and pick a custom header color. Both appear on every exported PDF in place of the default navy header, on both pages.</p>
 
     <hr class="section-rule">
 
@@ -334,10 +365,10 @@
 
     <h3>💳 Payments</h3>
     <ul>
-      <li><strong>Apple Pay</strong> — tap the Pay button on a person's row to request their share via contactless Apple Pay.</li>
-      <li><strong>Request (Zelle/iMessage)</strong> — tap Request to open a deep-link to Zelle or send an iMessage with the amount pre-filled.</li>
-      <li>Birthday-flagged people show $0 with no payment buttons — they owe nothing.</li>
+      <li><strong>Request</strong> — tap the green Request button on a person's row to open Venmo's charge-request screen pre-filled with the amount, or a pre-written iMessage if Venmo isn't installed.</li>
+      <li>Birthday and Not Paying people show $0 with no Request button — they owe nothing.</li>
     </ul>
+    <p style="margin-top:8px;">To tell people how to pay <em>you</em> back, enter your Zelle email/phone, Venmo @username, and/or Cash App $cashtag in the People section — these print on page 2 of the exported PDF. <strong>Payment Defaults <span class="badge">Pro</span></strong> — save them once in <strong>Settings → Payment Defaults</strong> and every new bill pre-fills them automatically.</p>
 
     <hr class="section-rule">
 
@@ -356,6 +387,17 @@
       <li><strong>Over Time</strong> — line chart of total bill amounts filtered by 1 month, 3 months, 6 months, or all time.</li>
       <li><strong>Top Spenders</strong> — ranked list and bar chart showing total spend, <strong>number of bills</strong> appeared in, and <strong>average spend per bill</strong> for each person. Birthday shares ($0) are correctly excluded so rankings aren't skewed.</li>
     </ul>
+
+    <hr class="section-rule">
+
+    <h3>✨ Go Pro <span class="badge">Pro</span></h3>
+    <p>BI Splitter Pro is a single, one-time in-app purchase (no subscription) that unlocks:</p>
+    <ul>
+      <li><strong>Not Paying ↪</strong> — flag someone as not paying and choose exactly who covers their share.</li>
+      <li><strong>Payment Defaults</strong> — save your Zelle, Venmo, and Cash App info once; every new bill is pre-filled.</li>
+      <li><strong>PDF Branding</strong> — your own logo and header color on every exported receipt.</li>
+    </ul>
+    <p style="margin-top:8px;">Tap <strong>Unlock Pro</strong> in the Settings tab, or tap any Pro feature directly, to see pricing and purchase. Already purchased on another device signed into the same Apple ID? Tap <strong>Restore Purchases</strong> on the purchase screen — no account or sign-in of ours is required, it uses Apple's own purchase history.</p>
   </div>
 
   <!-- FAQ -->
@@ -376,6 +418,15 @@
 
     <p class="faq-q">Can I combine Birthday and Exclude on the same bill?</p>
     <p class="faq-a">Yes. Birthday people pay $0 as usual. Excluded people pay only their own items. Everyone else (neither birthday nor excluded) shares the cost of the birthday person's items. All combinations are supported — including multiple birthday people and multiple excluded people on the same bill.</p>
+
+    <p class="faq-q">What does "Not Paying" do, and how is it different from Exclude? <span class="badge">Pro</span></p>
+    <p class="faq-a">Exclude means a person pays only their own items and contributes nothing extra. Not Paying goes further: that person pays <strong>nothing at all</strong>, and you choose exactly one other person on the bill to absorb their entire share (items, tax, and tip) — instead of it being spread evenly across everyone. It's a Pro feature, and it's mutually exclusive with Birthday and Exclude on the same person.</p>
+
+    <p class="faq-q">Can I chain Not Paying — have my payer's share covered by someone else too? <span class="badge">Pro</span></p>
+    <p class="faq-a">No. When picking who covers a Not Paying person's share, anyone already flagged Not Paying themselves is excluded from the list, so shares can never chain through multiple people.</p>
+
+    <p class="faq-q">What happens to a Not Paying assignment if I remove the payer from the bill? <span class="badge">Pro</span></p>
+    <p class="faq-a">BI Splitter automatically clears that Not Paying assignment so the bill's totals stay accurate — the person reverts to paying their own share until you pick a new payer.</p>
 
     <p class="faq-q">How does Browse Menu work?</p>
     <p class="faq-a">Once a restaurant name is entered, tap <strong>Browse Menu</strong> in the Items section header. BI Splitter sends the restaurant name (and address if available) to an AI model which returns a list of likely menu items with prices, descriptions, and dietary information. Results are approximate — always verify prices against the actual menu. Browse Menu requires an internet connection.</p>
@@ -408,7 +459,7 @@
     <p class="faq-a">The <strong>Share Bill</strong> deep-link feature requires the recipient to also have BI Splitter installed. To share with anyone, use <strong>Export PDF</strong> instead — it generates a formatted two-page receipt that can be sent via Messages, Mail, AirDrop, or any other app.</p>
 
     <p class="faq-q">What's on each page of the exported PDF?</p>
-    <p class="faq-a"><strong>Page 1</strong> shows the restaurant name and address, date, participant list (with 🎂 for birthday people and ⊖ for excluded people), a formatted items table, and a totals block with subtotal, tax, tip, and grand total. <strong>Page 2</strong> shows each person's individual share breakdown with items, tax, and tip columns, Zelle payment info (if entered), and the attached receipt photo (if any).</p>
+    <p class="faq-a"><strong>Page 1</strong> shows the restaurant name and address, date, participant list (with 🎂 for birthday people, ⊖ for excluded people, and ↪ for Not Paying people), a formatted items table, and a totals block with subtotal, tax, tip, and grand total. <strong>Page 2</strong> shows each person's individual share breakdown with items, tax, and tip columns, Zelle/Venmo/Cash App payment info (if entered), and the attached receipt photo (if any). Pro users can also add their own logo and header color — see <strong>PDF Branding</strong> below.</p>
 
     <p class="faq-q">Why does receipt scanning sometimes miss items?</p>
     <p class="faq-a">Receipt OCR works best on flat, well-lit receipts with clear printed text. Try scanning again with better lighting, or add items manually. You can also use <strong>Attach Photo</strong> to store a photo of the receipt on the bill without OCR parsing.</p>
@@ -429,10 +480,19 @@
     <p class="faq-a">Go to the <strong>Analytics</strong> tab and switch to the <strong>Top Spenders</strong> view. Each entry shows the person's total spend across all saved bills, how many bills they appeared in, and their average spend per bill.</p>
 
     <p class="faq-q">How do I request payment from someone?</p>
-    <p class="faq-a">In the person's row, tap the green <strong>Request</strong> button. BI Splitter will open Zelle (if installed) pre-filled with the amount, or send a pre-written iMessage to the person's phone number.</p>
+    <p class="faq-a">In the person's row, tap the green <strong>Request</strong> button. BI Splitter will open Venmo's charge-request screen (if installed) pre-filled with the amount, or send a pre-written iMessage to the person's phone number.</p>
 
-    <p class="faq-q">What is the Zelle field for?</p>
-    <p class="faq-a">You can optionally enter a Zelle email or phone number in the People section. This information is printed on page 2 of the exported PDF so recipients know where to send payment.</p>
+    <p class="faq-q">What are the Zelle, Venmo, and Cash App fields for?</p>
+    <p class="faq-a">You can optionally enter your Zelle email/phone, Venmo @username, and/or Cash App $cashtag in the People section. This information is printed on page 2 of the exported PDF so recipients know where to send your payment. With Pro, save them once in <strong>Settings → Payment Defaults</strong> so every new bill pre-fills them automatically — you can still edit or clear them per bill.</p>
+
+    <p class="faq-q">How do I unlock Pro, and what does it cost? <span class="badge">Pro</span></p>
+    <p class="faq-a">Go to the <strong>Settings</strong> tab and tap <strong>Unlock Pro</strong> (or tap any Pro feature directly, like the Not Paying capsule). It's a single one-time purchase — no subscription — that unlocks Not Paying, Payment Defaults, and PDF Branding for good. The exact price is shown on the purchase screen before you buy.</p>
+
+    <p class="faq-q">I bought Pro on another device — how do I unlock it here? <span class="badge">Pro</span></p>
+    <p class="faq-a">Open the purchase screen (Settings → Unlock Pro) and tap <strong>Restore Purchases</strong>. BI Splitter checks Apple's own purchase records for the Apple ID signed into this device — no account or sign-in with us is needed.</p>
+
+    <p class="faq-q">How do I add my own logo or color to the PDF? <span class="badge">Pro</span></p>
+    <p class="faq-a">Once Pro is unlocked, go to <strong>Settings → PDF Branding</strong>. Tap <strong>Choose</strong> to pick a logo image from your photo library — it's automatically resized — and use the color picker to set a custom header color. Both appear on every exported PDF going forward. Tap <strong>Remove</strong> or <strong>Reset to Default Color</strong> to revert to the original navy branding.</p>
 
     <p class="faq-q">How do I export all my bills?</p>
     <p class="faq-a">In the Saved Bills tab, tap <strong>Export Bills</strong> in the top-left corner to download a JSON file of all your saved bills — useful for backup or transferring to a new device.</p>

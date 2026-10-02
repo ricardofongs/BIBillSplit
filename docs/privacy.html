@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />/Users/ricardofong/swift/BIBillSplit/BI Bill Split/BI Bill Split.xcodeproj
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Privacy Policy – BI Splitter</title>
   <style>
@@ -87,12 +87,12 @@
       We do not collect, sell, or share your personal information with third parties.
       This policy explains what data the app uses and why.
     </p>
-    <p style="margin-top:10px;"><strong>Last updated: August 3, 2026</strong></p>
+    <p style="margin-top:10px;"><strong>Last updated: October 2, 2026</strong></p>
   </div>
 
   <div class="card">
     <h2>1. Data We Collect</h2>
-    <p>BI Splitter does <strong>not</strong> collect any data from you directly. All information you enter — restaurant names, item prices, people's names, phone numbers, and bill history — is stored <strong>locally on your device only</strong> using Core Data and UserDefaults.</p>
+    <p>BI Splitter does <strong>not</strong> collect any data from you directly. All information you enter — restaurant names, item prices, people's names, phone numbers, payment handles (Zelle email/phone, Venmo username, Cash App tag), your custom PDF logo and header color, and bill history — is stored <strong>locally on your device only</strong> using Core Data and UserDefaults.</p>
     <p style="margin-top:10px;">We never transmit this data to our servers.</p>
   </div>
 
@@ -107,10 +107,10 @@
   </div>
 
   <div class="card">
-    <h2>3. Camera Access</h2>
-    <p>BI Splitter may request camera access so you can scan receipts and attach receipt photos to a bill.</p>
+    <h2>3. Camera &amp; Photo Library Access</h2>
+    <p>BI Splitter may request camera and/or photo library access so you can scan receipts, attach a receipt photo to a bill, and (Pro) choose a logo image for your exported PDFs.</p>
     <ul style="margin-top:10px;">
-      <li>Images captured are stored on-device only (compressed and saved with the bill record).</li>
+      <li>Images you capture or select are stored on-device only (compressed and saved with the bill record, or with your app-wide branding settings for the Pro PDF logo).</li>
       <li>No photos are uploaded to any server.</li>
     </ul>
   </div>
@@ -127,32 +127,38 @@
   </div>
 
   <div class="card">
-    <h2>5. Apple Pay</h2>
-    <p>BI Splitter integrates with Apple Pay to allow users to collect payments at the table. All payment processing is handled entirely by Apple and your chosen payment processor. BI Splitter never has access to your payment credentials, card numbers, or bank information. Please see <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple's Privacy Policy</a> for details.</p>
+    <h2>5. Payment Requests (Venmo) &amp; Payment Info (Zelle/Venmo/Cash App)</h2>
+    <p>The <strong>Request</strong> button on a person's row opens Venmo's charge-request screen via a deep link (or a pre-filled text message if Venmo isn't installed). BI Splitter does not process payments itself, never sees your or anyone else's financial account details, and has no access to any transaction. All payment handling happens entirely within Venmo, Messages, or the recipient's own banking app.</p>
+    <p style="margin-top:10px;">The Zelle email/phone, Venmo username, and Cash App tag you optionally enter (per bill, or saved as Pro defaults) are stored locally on your device and only used to display that information on your exported PDF — they are never transmitted anywhere by BI Splitter.</p>
   </div>
 
   <div class="card">
-    <h2>6. Bill Sharing (Deep Links)</h2>
+    <h2>6. In-App Purchase (Pro Unlock)</h2>
+    <p>BI Splitter offers a one-time "Pro Unlock" purchase via Apple's StoreKit. All payment processing, billing information, and transaction records are handled entirely by Apple — BI Splitter never sees or stores your payment details. We only check with Apple whether your device holds a valid Pro entitlement (via StoreKit's on-device transaction APIs) to decide whether to show Pro features. Restoring a previous purchase uses Apple's own StoreKit sync and does not involve any server of ours. Please see <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple's Privacy Policy</a> for details on how Apple handles purchase data.</p>
+  </div>
+
+  <div class="card">
+    <h2>7. Bill Sharing (Deep Links)</h2>
     <p>BI Splitter lets you share a bill with another device using a deep link (a <code>billsplit://</code> URL). The bill data is encoded directly into the link. You share this link manually via Messages, Mail, or AirDrop. We do not operate any server or relay for this feature — the link goes directly from your device to the recipient's device.</p>
   </div>
 
   <div class="card">
-    <h2>7. Analytics &amp; Tracking</h2>
+    <h2>8. Analytics &amp; Tracking</h2>
     <p>BI Splitter does <strong>not</strong> include any third-party analytics SDKs, advertising networks, or tracking libraries. We do not track your behavior across apps or websites.</p>
   </div>
 
   <div class="card">
-    <h2>8. Children's Privacy</h2>
+    <h2>9. Children's Privacy</h2>
     <p>BI Splitter is not directed toward children under the age of 13. We do not knowingly collect personal information from children.</p>
   </div>
 
   <div class="card">
-    <h2>9. Changes to This Policy</h2>
+    <h2>10. Changes to This Policy</h2>
     <p>We may update this Privacy Policy from time to time. Any changes will be reflected on this page with an updated date. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
   </div>
 
   <div class="card">
-    <h2>10. Contact Us</h2>
+    <h2>11. Contact Us</h2>
     <p>If you have questions or concerns about this Privacy Policy, please contact us:</p>
     <p style="margin-top:10px;">
       📧 <a href="mailto:rfdigitaldev@gmail.com">rfdigitaldev@gmail.com</a>
