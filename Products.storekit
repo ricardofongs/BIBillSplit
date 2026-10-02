@@ -1,0 +1,51 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "4C2F6C3B-8F3E-4C9E-9F1A-5E7B1E6C9A11",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "9E1A2B3C-0001-4D5E-8F6A-1B2C3D4E5F60",
+      "localizations" : [
+        {
+          "description" : "Unlocks default Zelle info and the Not Paying payer feature.",
+          "displayName" : "Pro Unlock",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.rf.BI-Bill-Split.prounlock",
+      "referenceName" : "Pro Unlock",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "0",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
